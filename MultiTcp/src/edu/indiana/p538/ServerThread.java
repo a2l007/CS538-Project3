@@ -43,8 +43,15 @@ public class ServerThread extends Thread{
 
                 byte[] clientInput = baos.toByteArray();
                 baos.close();
+            }catch(IOException e){
+                System.err.println("clientSocket: unable to get data");
             }
-            
+
+            //see if message is a SYNl, FIN, or data msg
+            // if SYN, request connection to server -> set up ConnId and HashMap entry
+            // if FIN, end connection with server
+            // if data, confirm in order, unpack, and send on to server
+
         }catch(Exception e){
             e.printStackTrace();
         }
