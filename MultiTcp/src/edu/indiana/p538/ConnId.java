@@ -4,10 +4,10 @@ package edu.indiana.p538;
  * Created by ladyl on 11/11/2016.
  */
 public class ConnId {
-    private long ip;
-    private short port;
+    private String ip;
+    private String port;
 
-    public ConnId(long ip, short port){
+    public ConnId(String ip, String port){
         this.ip = ip;
         this.port = port;
     }
