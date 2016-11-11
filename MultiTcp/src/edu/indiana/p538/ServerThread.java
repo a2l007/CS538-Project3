@@ -26,13 +26,25 @@ public class ServerThread extends Thread{
                 BufferedOutputStream clientOut = new BufferedOutputStream(socket.getOutputStream());
 
                 // InputStream to socket (client)
-                BufferedReader clientIn = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                BufferedInputStream clientIn = new BufferedInputStream(socket.getInputStream());
                 ){
             //TODO: PASS INFO BETWEEN STREAMS
-                // Client OutputStream needs to be fed to another InputStream
+                // Client InputStream needs to be fed to another OutputStream after parsing
                     //I think this may be through the SERVER'S OutputStream????
-                // Client InputStream needs to be fed to (from other OutputStream)
+                // Client OutputStream needs to be fed to (from other InputStream)
                     //I think this may be via the SERVER'S InputStream
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            int done = 0;
+            try{
+                while((done = clientIn.read(buf, 0, 4096)) != -1){
+                    baos.write(buf, 0, done);
+                }
+
+                byte[] clientInput = baos.toByteArray();
+                baos.close();
+            }
+            
         }catch(Exception e){
             e.printStackTrace();
         }

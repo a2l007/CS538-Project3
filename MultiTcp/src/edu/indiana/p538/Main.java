@@ -11,8 +11,9 @@ import java.util.HashMap;
 public class Main {
     private static int PROXY_PORT = 6000;
     private static int SERVER_PORT = 6001;
-    private static HashMap<Integer, ConnId> CONNECTIONS = new HashMap<Integer, ConnId>();
 
+    //I am not sure how this is going to work across the threads....
+    private static HashMap<Integer, ConnId> CONNECTIONS = new HashMap<Integer, ConnId>();
 
     public static void main(String[] args) {
         //number of pipes
@@ -22,21 +23,16 @@ public class Main {
         //sockets???
         //we need a queue for both ends
 
+        boolean listening = true;
         //Socket to listen for LP
-        try(
-                ServerSocket proxyServer = new ServerSocket(PROXY_PORT);
-                Socket client = proxyServer.accept();
-                BufferedOutputStream clientOut = new BufferedOutputStream(client.getOutputStream());
-                BufferedReader clientIn = new BufferedReader(
-                        new InputStreamReader(client.getInputStream()));
-        ){
-
+        try(ServerSocket proxyServer = new ServerSocket(PROXY_PORT)){
+            //while socket is listening
+            while(listening){
+                new ServerThread(proxyServer.accept()).start();
+            }
         }catch(Exception e){
             System.err.println("Error opening socket");
+            System.exit(-1);
         }
-
-        //while socket is listening
-
-
     }
 }
