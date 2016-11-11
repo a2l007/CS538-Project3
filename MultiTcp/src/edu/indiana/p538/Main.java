@@ -13,7 +13,7 @@ public class Main {
     private static int SERVER_PORT = 6001;
 
     //I am not sure how this is going to work across the threads....
-    private static HashMap<Integer, ConnId> CONNECTIONS = new HashMap<Integer, ConnId>();
+    protected static HashMap<Integer, ConnId> CONNECTIONS = new HashMap<Integer, ConnId>();
 
     public static void main(String[] args) {
         //number of pipes
