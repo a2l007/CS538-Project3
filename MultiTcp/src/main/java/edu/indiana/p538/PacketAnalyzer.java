@@ -1,5 +1,9 @@
 package edu.indiana.p538;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
+
 /*
  * @Atul
  */
@@ -66,5 +70,58 @@ public class PacketAnalyzer {
 			return c;
 		}
 	}
+
+	public boolean isMSyn(byte[] header){
+        byte[] head3 = Arrays.copyOfRange(header, 6, 8);
+        ByteBuffer buf = ByteBuffer.wrap(head3);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
+        int val = (int) buf.getShort();
+
+        if(val == AppConstants.MSYN){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    public boolean isMFin(byte[] header){
+        byte[] head3 = Arrays.copyOfRange(header, 6, 8);
+        ByteBuffer buf = ByteBuffer.wrap(head3);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
+        int val = (int) buf.getShort();
+
+        if(val == AppConstants.MFIN){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    public int getConnId(byte[] header){
+        byte[] head1 = Arrays.copyOf(header, 2);
+        ByteBuffer buf = ByteBuffer.wrap(head1);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
+        int id = (int) buf.getShort();
+
+        return id;
+    }
+
+    public int getLen(byte[] header){
+        byte[] head3 = Arrays.copyOfRange(header, 6, 8);
+        ByteBuffer buf = ByteBuffer.wrap(head3);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
+        int len = (int) buf.getShort();
+
+        return len;
+    }
+
+    public int getSeqNum(byte[] header){
+        byte[] head2 = Arrays.copyOfRange(header, 2, 6);
+        ByteBuffer buf = ByteBuffer.wrap(head2);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
+        int seq = buf.getInt();
+
+        return seq;
+    }
 
 }
