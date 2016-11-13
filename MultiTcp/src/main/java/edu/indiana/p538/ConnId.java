@@ -11,12 +11,14 @@ public class ConnId {
         this.ip = ip;
         this.port = port;
     }
+    public ConnId(){
 
-    public long getIp(){
+    }
+    public String getIp(){
         return this.ip;
     }
 
-    public short getPort(){
+    public String getPort(){
         return this.port;
     }
 }

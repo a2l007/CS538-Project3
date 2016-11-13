@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$USER_HOME$/Documents/GitHub/CS538-Project3/MultiTcp/MultiTcp.iml" filepath="$USER_HOME$/Documents/GitHub/CS538-Project3/MultiTcp/MultiTcp.iml" />
+      <module fileurl="file://$PROJECT_DIR$/MultiTcp.iml" filepath="$PROJECT_DIR$/MultiTcp.iml" />
     </modules>
   </component>
 </project>
