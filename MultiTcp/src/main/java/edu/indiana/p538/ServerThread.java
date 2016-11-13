@@ -44,6 +44,15 @@ public class ServerThread extends Thread{
                     //test header
                     byte[] header = Arrays.copyOfRange(clientInput, 0, AppConstants.MHEADER);
                     //test if MSYN or MFIN
+                    if(PacketAnalyzer.isMSyn(header)){
+                        //get destIp and destPort
+
+                        //not convinced we need this anymore....
+                        ConnInfo newConn = PacketAnalyzer.fetchConnectionInfo(Arrays.copyOf(clientInput, AppConstants.MSYN_LEN));
+                        //start new socket??
+                        //how is this going to work....
+                    }
+
                     //if MSYN >>> establish connection with server at destIP/port given in next 6 bytes.
                     //if MFIN >>> examine reason; end connection with server appropriately.
 
@@ -56,7 +65,7 @@ public class ServerThread extends Thread{
             }
 
             //see if message is a SYNl, FIN, or data msg
-            // if SYN, request connection to server -> set up ConnId and HashMap entry
+            // if SYN, request connection to server -> set up ConnInfo and HashMap entry
             // if FIN, end connection with server
             // if data, confirm in order, unpack, and send on to server
 

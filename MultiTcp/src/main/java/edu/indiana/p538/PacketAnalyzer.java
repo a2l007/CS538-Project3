@@ -13,7 +13,7 @@ public class PacketAnalyzer {
 	 * Returns a connection object with information retrieved from the SYN
 	 * packet
 	 */
-	public ConnId fetchConnectionInfo(byte[] packetStream) {
+	public static ConnInfo fetchConnectionInfo(byte[] packetStream) {
 		int packetPointer = 0, synPointer = 0;
 		if (packetPointer < packetStream.length) {
 			synPointer = packetPointer + 6;
@@ -56,22 +56,22 @@ public class PacketAnalyzer {
 						packetStream[packetPointer + 1]));
 				String sourceIp = sourceIpBuf.toString();
 				String port = portBuf.toString();
-				ConnId connection = new ConnId(sourceIp, port);
+				ConnInfo connection = new ConnInfo(sourceIp, port);
 				return connection;
 			}
 			else{
 				System.out.println("Missing SYN packet");
-				ConnId c = new ConnId();
+				ConnInfo c = new ConnInfo();
 				return c;
 			}
 		} else {
 			System.out.println("Empty Stream");
-			ConnId c = new ConnId();
+			ConnInfo c = new ConnInfo();
 			return c;
 		}
 	}
 
-	public boolean isMSyn(byte[] header){
+	public static boolean isMSyn(byte[] header){
         byte[] head3 = Arrays.copyOfRange(header, 6, 8);
         ByteBuffer buf = ByteBuffer.wrap(head3);
         buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -84,7 +84,7 @@ public class PacketAnalyzer {
         }
     }
 
-    public boolean isMFin(byte[] header){
+    public static boolean isMFin(byte[] header){
         byte[] head3 = Arrays.copyOfRange(header, 6, 8);
         ByteBuffer buf = ByteBuffer.wrap(head3);
         buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -97,7 +97,7 @@ public class PacketAnalyzer {
         }
     }
 
-    public int getConnId(byte[] header){
+    public static int getConnId(byte[] header){
         byte[] head1 = Arrays.copyOf(header, 2);
         ByteBuffer buf = ByteBuffer.wrap(head1);
         buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -106,7 +106,7 @@ public class PacketAnalyzer {
         return id;
     }
 
-    public int getLen(byte[] header){
+    public static int getLen(byte[] header){
         byte[] head3 = Arrays.copyOfRange(header, 6, 8);
         ByteBuffer buf = ByteBuffer.wrap(head3);
         buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -115,7 +115,7 @@ public class PacketAnalyzer {
         return len;
     }
 
-    public int getSeqNum(byte[] header){
+    public static int getSeqNum(byte[] header){
         byte[] head2 = Arrays.copyOfRange(header, 2, 6);
         ByteBuffer buf = ByteBuffer.wrap(head2);
         buf.order(ByteOrder.LITTLE_ENDIAN);
