@@ -2,11 +2,14 @@ package edu.indiana.p538;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.Arrays;
 
 /**
  * Created by ladyl on 11/11/2016.
  */
 public class ServerThread extends Thread{
+
+
 
     /*FIELDS*/
     private Socket socket = null;
@@ -34,15 +37,20 @@ public class ServerThread extends Thread{
                 // Client OutputStream needs to be fed to (from other InputStream)
                     //I think this may be via the SERVER'S InputStream
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            byte[] buf = new byte[4096];
+            byte[] clientInput = new byte[4104];
             int done = 0;
             try{
-                while((done = clientIn.read(buf, 0, 4096)) != -1){
-                    baos.write(buf, 0, done);
-                }
+                while((done = clientIn.read(clientInput)) != -1){
+                    //test header
+                    byte[] header = Arrays.copyOfRange(clientInput, 0, AppConstants.MHEADER);
+                    //test if MSYN or MFIN
+                    //if MSYN >>> establish connection with server at destIP/port given in next 6 bytes.
+                    //if MFIN >>> examine reason; end connection with server appropriately.
 
-                byte[] clientInput = baos.toByteArray();
+
+                }
                 baos.close();
+
             }catch(IOException e){
                 System.err.println("clientSocket: unable to get data");
             }
