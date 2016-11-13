@@ -9,11 +9,8 @@ import java.util.Arrays;
  */
 public class ServerThread extends Thread{
 
-    /*CONSTANTS*/
-    private static int MSYN_LEN = 14;
-    private static int MFIN_LEN = 9;
-    private static int MHEADER = 8;
-    
+
+
     /*FIELDS*/
     private Socket socket = null;
 
@@ -45,8 +42,10 @@ public class ServerThread extends Thread{
             try{
                 while((done = clientIn.read(clientInput)) != -1){
                     //test header
-                    byte[] header = Arrays.copyOfRange(clientInput, 0, MHEADER);
+                    byte[] header = Arrays.copyOfRange(clientInput, 0, AppConstants.MHEADER);
                     //test if MSYN or MFIN
+                    //if MSYN >>> establish connection with server at destIP/port given in next 6 bytes.
+                    //if MFIN >>> examine reason; end connection with server appropriately.
 
 
                 }
