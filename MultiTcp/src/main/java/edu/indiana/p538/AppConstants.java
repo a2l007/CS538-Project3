@@ -10,4 +10,6 @@ public class AppConstants {
     public static final int MFIN_LEN = 9;
     public static final int MFIN = 0xFFFE;
     public static final int MHEADER = 8;
+    public static final int IP_LEN = 4;
+    public static final int PORT_LEN = 2;
 }

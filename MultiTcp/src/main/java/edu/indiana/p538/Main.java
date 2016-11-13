@@ -1,11 +1,6 @@
 package edu.indiana.p538;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.HashMap;
 
 public class Main {
@@ -13,7 +8,7 @@ public class Main {
     private static int SERVER_PORT = 6001;
 
     //I am not sure how this is going to work across the threads....
-    protected static HashMap<Integer, ConnId> CONNECTIONS = new HashMap<Integer, ConnId>();
+    protected static HashMap<Integer, ConnInfo> CONNECTIONS = new HashMap<Integer, ConnInfo>();
 
     public static void main(String[] args) {
         //number of pipes
