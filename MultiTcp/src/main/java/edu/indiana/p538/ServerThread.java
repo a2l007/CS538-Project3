@@ -47,10 +47,14 @@ public class ServerThread extends Thread{
                     if(PacketAnalyzer.isMSyn(header)){
                         //get destIp and destPort
 
-                        //not convinced we need this anymore....
                         ConnInfo newConn = PacketAnalyzer.fetchConnectionInfo(Arrays.copyOf(clientInput, AppConstants.MSYN_LEN));
                         //start new socket??
                         //how is this going to work....
+                    }else if(PacketAnalyzer.isMFin(header)){
+                        //end connection
+                            //get reason for termination
+                            //if FIN: shutdownOutput()
+                            //if RST: close()
                     }
 
                     //if MSYN >>> establish connection with server at destIP/port given in next 6 bytes.
