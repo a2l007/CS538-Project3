@@ -25,7 +25,6 @@ public class PacketAnalyzer {
 			String synHexString = synBuffer.toString();
 			if (synHexString.equals("FFFF")) {
 
-				System.out.println("SYN Packet");
 				String hexString = String.format("%02X ",
 						packetStream[packetPointer]);
 				int connectIdentifier = Utils.hextoDecimal(hexString);
