@@ -49,14 +49,18 @@ public class ServerThread extends Thread{
 
                         ConnInfo newConn = PacketAnalyzer.fetchConnectionInfo(Arrays.copyOf(clientInput, AppConstants.MSYN_LEN));
                         //start new socket??
-                        //how is this going to work....
-                    }else if(PacketAnalyzer.isMFin(header)){
                         ClientThread client=new ClientThread(newConn);
                         client.start();
-                        synchronized (client){
+                        synchronized (client) {
                             //get the data byte array and notify client thread to resume data transfer
                             client.notify();
                         }
+                        //how is this going to work....
+                    }else if(PacketAnalyzer.isMFin(header)){
+                        //end connection
+                            //get reason for termination
+                            //if FIN: shutdownOutput()
+                            //if RST: close()
                     }
 
                     //if MSYN >>> establish connection with server at destIP/port given in next 6 bytes.
@@ -75,8 +79,8 @@ public class ServerThread extends Thread{
             // if FIN, end connection with server
             // if data, confirm in order, unpack, and send on to server
 
-        }catch(IOException e){
-           System.err.print(e.getMessage());
+        }catch(Exception e){
+            e.printStackTrace();
         }
     }
 
