@@ -1,5 +1,8 @@
 package edu.indiana.p538;
 
+import javax.xml.bind.DatatypeConverter;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
@@ -15,72 +18,41 @@ public class PacketAnalyzer {
 	 */
 	public static ConnInfo fetchConnectionInfo(byte[] packetStream) {
 		int packetPointer = 0, synPointer = 0;
-		if (packetPointer < packetStream.length) {
-			synPointer = packetPointer + 6;
+        byte[] ip = Arrays.copyOfRange(packetStream, 8, 12);
+        byte[] port = Arrays.copyOfRange(packetStream, 12, 14);
 
-			StringBuffer synBuffer = new StringBuffer(String.format("%02X ",
-					packetStream[synPointer]));
-			synBuffer.append(String.format("%02X ",
-					packetStream[synPointer + 1]));
-			String synHexString = synBuffer.toString();
-			if (synHexString.equals("FFFF")) {
-
-				String hexString = String.format("%02X ",
-						packetStream[packetPointer]);
-				int connectIdentifier = Utils.hextoDecimal(hexString);
-
-				packetPointer += 2;
-
-				int seqNumber = packetStream[packetPointer];
-				packetPointer += 6;
-
-				StringBuffer sourceIpBuf = new StringBuffer(
-						String.valueOf(Utils.hextoDecimal(String.format("%02X",
-								packetStream[packetPointer]))));
-
-				sourceIpBuf.append(".").append(
-						String.valueOf(Utils.hextoDecimal(String.format("%02X",
-								packetStream[packetPointer + 1]))));
-				sourceIpBuf.append(".").append(
-						String.valueOf(Utils.hextoDecimal(String.format("%02X",
-								packetStream[packetPointer + 2]))));
-				sourceIpBuf.append(".").append(
-						String.valueOf(Utils.hextoDecimal(String.format("%02X",
-								packetStream[packetPointer + 3]))));
-				packetPointer += 4; // navigating to destination ip byte
-
-				StringBuffer portBuf = new StringBuffer(String.format("%02X",
-						packetStream[packetPointer]));
-				portBuf.append(String.format("%02X",
-						packetStream[packetPointer + 1]));
-				String sourceIp = sourceIpBuf.toString();
-				String port = portBuf.toString();
-				ConnInfo connection = new ConnInfo(sourceIp, port);
-				return connection;
-			}
-			else{
-				System.out.println("Missing SYN packet");
-				ConnInfo c = new ConnInfo();
-				return c;
-			}
-		} else {
-			System.out.println("Empty Stream");
-			ConnInfo c = new ConnInfo();
-			return c;
-		}
+        try {
+            InetAddress ipAddress = InetAddress.getByAddress(DatatypeConverter.parseHexBinary(Utils.bytesToHex(ip)));
+            int portNumber=Utils.hextoDecimal(Utils.bytesToHex(port));
+            ConnInfo connection=new ConnInfo(ipAddress,portNumber);
+            return connection;
+        }
+        catch(UnknownHostException e){
+            throw new RuntimeException("Unknown host",e);
+        }
 	}
 
 	public static boolean isMSyn(byte[] header){
         byte[] head3 = Arrays.copyOfRange(header, 6, 8);
-        ByteBuffer buf = ByteBuffer.wrap(head3);
+		System.out.println(Utils.bytesToHex(head3));
+		if(Utils.bytesToHex(head3).equals("FFFF")){
+			return true;
+		}
+		else{
+			return false;
+		}
+		// Commented out for now as buf.getShort() was returning -1. Can you take a look?
+		/*
+		ByteBuffer buf = ByteBuffer.wrap(head3);
         buf.order(ByteOrder.LITTLE_ENDIAN);
         int val = (int) buf.getShort();
-
-        if(val == AppConstants.MSYN){
+		System.out.println("Val is"+val);
+		if(val == AppConstants.MSYN){
             return true;
         }else{
             return false;
         }
+        */
     }
 
     public static boolean isMFin(byte[] header){
