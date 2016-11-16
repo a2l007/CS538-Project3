@@ -17,17 +17,22 @@ public class Main {
         //parse headers
         //sockets???
         //we need a queue for both ends
-
         boolean listening = true;
         //Socket to listen for LP
+        new Thread(new ServerThread(PROXY_PORT)).start();
+        /*
         try(ServerSocket proxyServer = new ServerSocket(PROXY_PORT)){
             //while socket is listening
             while(listening){
+                System.out.println("Liatening");
                 new ServerThread(proxyServer.accept()).start();
+                System.out.println("Liatening again");
+
             }
         }catch(Exception e){
             System.err.println("Error opening socket");
             System.exit(-1);
         }
+        */
     }
 }

@@ -25,20 +25,23 @@ public class ClientThread extends Thread{
     }
     public void run() {
         try {
-            int port = Integer.parseInt(conn.getPort());
+            System.out.println("Successful11");
+
+            int port = conn.getPort();
             //Establish connection to server
             Socket socket = new Socket(conn.getIp(), port);
-            synchronized(this){
-                this.wait();
-            }
+//            synchronized(this){
+//                this.wait();
+//            }
             OutputStream  out = socket.getOutputStream();
             out.write(dataMessage,0,dataMessage.length);
+            System.out.println("Successful");
         } catch (IOException e) {
             System.err.print(e.getMessage());
         }
-        catch(InterruptedException e){
-            System.err.print(e.getMessage());
-
-        }
+//        catch(InterruptedException e){
+//            System.err.print(e.getMessage());
+//
+//        }
     }
 }
