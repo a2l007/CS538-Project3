@@ -10,11 +10,12 @@ import java.util.Arrays;
 /**
  * Created by atmohan on 16-11-2016.
  */
-public class ServerThreadWorker extends Thread {
+public class ServerThreadWorker implements Runnable {
     protected Socket clientSocket = null;
     public ServerThreadWorker(Socket socket){
         this.clientSocket=socket;
     }
+
     public void run(){
         try(
                 //TODO: RESOURCES NEEDED
@@ -46,7 +47,7 @@ public class ServerThreadWorker extends Thread {
                         ConnInfo newConn = PacketAnalyzer.fetchConnectionInfo(Arrays.copyOfRange(clientInput, 0,AppConstants.MSYN_LEN));
                         //start new socket??
                         //how is this going to work....
-                        new Thread(new ClientThread(newConn)).start();
+                        (new Thread(new ClientThread(newConn))).start();
                      /*    ClientThread client=new ClientThread(newConn);
                         client.start();
                        synchronized (client){

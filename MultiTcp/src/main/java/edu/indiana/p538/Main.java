@@ -19,7 +19,7 @@ public class Main {
         //we need a queue for both ends
         boolean listening = true;
         //Socket to listen for LP
-        new Thread(new ServerThread(PROXY_PORT)).start();
+        (new Thread(new ServerThread(PROXY_PORT))).start();
         /*
         try(ServerSocket proxyServer = new ServerSocket(PROXY_PORT)){
             //while socket is listening
