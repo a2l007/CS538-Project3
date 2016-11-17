@@ -6,9 +6,11 @@ import java.net.Socket;
 /**
  * Created by atmohan on 13-11-2016.
  */
-public class ClientThread extends Thread{
+public class ClientThread implements Runnable{
+    /*FIELDS AND CONSTANTS */
     public ConnInfo conn;
 
+    /*GETTERS AND SETTERS*/
     public byte[] getDataMessage() {
         return dataMessage;
     }
@@ -20,9 +22,9 @@ public class ClientThread extends Thread{
     public static byte dataMessage[];
     private Socket socket = null;
     public ClientThread(ConnInfo c){
-        super("ClientThread");
         this.conn=c;
     }
+
     public void run() {
         try {
             System.out.println("Successful11");

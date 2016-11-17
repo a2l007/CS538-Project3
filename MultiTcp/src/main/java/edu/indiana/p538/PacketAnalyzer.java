@@ -45,7 +45,7 @@ public class PacketAnalyzer {
 		/*
 		ByteBuffer buf = ByteBuffer.wrap(head3);
         buf.order(ByteOrder.LITTLE_ENDIAN);
-        int val = (int) buf.getShort();
+        int val = (int) Integer.getUnsignedLong(buf.getShort());
 		System.out.println("Val is"+val);
 		if(val == AppConstants.MSYN){
             return true;
@@ -93,6 +93,10 @@ public class PacketAnalyzer {
         int seq = buf.getInt();
 
         return seq;
+    }
+
+    public static int getMFin(byte payload){
+        return (int) payload;
     }
 
 }

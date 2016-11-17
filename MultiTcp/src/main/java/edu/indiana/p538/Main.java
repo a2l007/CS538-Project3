@@ -1,6 +1,5 @@
 package edu.indiana.p538;
 
-import java.net.ServerSocket;
 import java.util.HashMap;
 
 public class Main {
@@ -19,13 +18,13 @@ public class Main {
         //we need a queue for both ends
         boolean listening = true;
         //Socket to listen for LP
-        new Thread(new ServerThread(PROXY_PORT)).start();
+        (new Thread(new ProxyThread(PROXY_PORT))).start();
         /*
         try(ServerSocket proxyServer = new ServerSocket(PROXY_PORT)){
             //while socket is listening
             while(listening){
                 System.out.println("Liatening");
-                new ServerThread(proxyServer.accept()).start();
+                new ProxyThread(proxyServer.accept()).start();
                 System.out.println("Liatening again");
 
             }
