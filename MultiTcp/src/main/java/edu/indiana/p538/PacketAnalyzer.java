@@ -95,4 +95,8 @@ public class PacketAnalyzer {
         return seq;
     }
 
+    public static int getMFin(byte payload){
+        return (int) payload;
+    }
+
 }
