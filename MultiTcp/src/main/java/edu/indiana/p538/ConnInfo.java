@@ -14,7 +14,8 @@ public class ConnInfo {
         this.port = port;
     }
     public ConnInfo(){
-
+        this.ip = null;
+        this.port = 0;
     }
     public InetAddress getIp(){
         return this.ip;

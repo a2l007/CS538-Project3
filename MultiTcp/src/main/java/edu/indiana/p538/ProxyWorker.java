@@ -33,8 +33,18 @@ public class ProxyWorker implements Runnable{
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+
+            byte[] message = event.getData();
+            //test for MSYN
+            if(PacketAnalyzer.isMSyn(message)){
+                ConnInfo msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
+                (event.getProxy()).establishConn(msgInfo)
+            }
+            //test for MFIN
+            //else process and send data
+
             //return to the sender
-            (event.getProxy()).send(event.getSocket(), event.getData());
+            (event.getProxy()).send(event.getSocket(), message);
         }
     }
 }
