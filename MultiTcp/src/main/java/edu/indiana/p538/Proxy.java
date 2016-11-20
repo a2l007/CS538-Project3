@@ -110,13 +110,16 @@ public class Proxy implements Runnable {
 
     public void send(ConnInfo connInfo, byte[] data){
         //TODO: IMPLEMENT
+        //add it to the buffer queue, send on as we can
     }
 
     public void establishConn(ConnInfo msgInfo, byte[] data){
         //TODO: IMPLEMENT
+        //add to event queue; create connection as possible
     }
 
     public void sendFin(ConnInfo connInfo, int reason){
         //TODO: IMPLEMENT
+        //add to event queue; end connection as possible
     }
 }
