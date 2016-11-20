@@ -115,4 +115,8 @@ public class Proxy implements Runnable {
     public void establishConn(ConnInfo msgInfo, byte[] data){
         //TODO: IMPLEMENT
     }
+
+    public void sendFin(ConnInfo connInfo, int reason){
+        //TODO: IMPLEMENT
+    }
 }
