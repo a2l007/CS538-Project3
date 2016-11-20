@@ -111,4 +111,8 @@ public class Proxy implements Runnable {
     public void send(Socket socket, byte[] data){
         //TODO: IMPLEMENT
     }
+
+    public void establishConn(ConnInfo msgInfo, byte[] data){
+        //TODO: IMPLEMENT
+    }
 }

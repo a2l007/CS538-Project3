@@ -38,7 +38,8 @@ public class ProxyWorker implements Runnable{
             //test for MSYN
             if(PacketAnalyzer.isMSyn(message)){
                 ConnInfo msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
-                (event.getProxy()).establishConn(msgInfo)
+                //send back to the proxy
+                (event.getProxy()).establishConn(msgInfo, message);
             }
             //test for MFIN
             //else process and send data
