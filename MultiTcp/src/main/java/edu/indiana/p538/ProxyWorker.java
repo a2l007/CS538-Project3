@@ -1,6 +1,7 @@
 package edu.indiana.p538;
 
 import java.nio.channels.SocketChannel;
+import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -35,17 +36,31 @@ public class ProxyWorker implements Runnable{
             }
 
             byte[] message = event.getData();
+            byte[] header = Arrays.copyOfRange(message, 0, AppConstants.MHEADER);
             //test for MSYN
-            if(PacketAnalyzer.isMSyn(message)){
+            if(PacketAnalyzer.isMSyn(header)){
                 ConnInfo msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
                 //send back to the proxy
                 (event.getProxy()).establishConn(msgInfo, message);
+            }else if(PacketAnalyzer.isMFin(header)){
+                //else test for MFIN
+                byte payload = message[AppConstants.MHEADER];
+                int reason = PacketAnalyzer.getMFin(payload);
+                int connId = PacketAnalyzer.getConnId(header);
+                if(reason == AppConstants.FIN_FLAG){
+                    //end connection
+                    //TODO: IF FIN
+                }else if(reason == AppConstants.RST_FLAG){
+                    //end connection FORCEFULLY
+                    //TODO: IF RST
+                }
+            }else{
+                //else process and send data
+                //return to the sender
+                (event.getProxy()).send(event.getSocket(), message);
             }
-            //test for MFIN
-            //else process and send data
 
-            //return to the sender
-            (event.getProxy()).send(event.getSocket(), message);
+
         }
     }
 }
