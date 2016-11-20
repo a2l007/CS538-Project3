@@ -47,7 +47,7 @@ public class Proxy implements Runnable {
                 this.selector.select();
                 Iterator<SelectionKey> keys = this.selector.selectedKeys().iterator();
                 while(keys.hasNext()){
-                    SelectionKey key = (SelectionKey) keys.next();
+                    SelectionKey key = keys.next();
                     keys.remove();
 
                     if(key.isValid()){
@@ -84,8 +84,8 @@ public class Proxy implements Runnable {
     private void read(SelectionKey key) throws IOException{
         SocketChannel sockCh = (SocketChannel) key.channel();
 
-        //do we want to clear the buffer? i'm not sure we do but we will need to eventually...
-        //hold off on that for now...
+        //clear the buffer. if we've reached this point again we've already passed data on
+        this.readBuf.clear();
 
         int numRead;
         try{
@@ -106,5 +106,9 @@ public class Proxy implements Runnable {
 
         //hand to worker thread
         this.worker.processData(this, sockCh, this.readBuf.array(), numRead);
+    }
+
+    public void send(Socket socket, byte[] data){
+        //TODO: IMPLEMENT
     }
 }
