@@ -50,14 +50,18 @@ public class ProxyWorker implements Runnable{
                 if(reason == AppConstants.FIN_FLAG){
                     //end connection
                     //TODO: IF FIN
+                    //i think send the event to the proxy, let it cover it
                 }else if(reason == AppConstants.RST_FLAG){
                     //end connection FORCEFULLY
                     //TODO: IF RST
+                    //same as above
                 }
             }else{
                 //else process and send data
+                byte[] payload = PacketAnalyzer.getPayload(message);
+                ConnInfo connInfo = PacketAnalyzer.fetchConnectionInfo(header);
                 //return to the sender
-                (event.getProxy()).send(event.getSocket(), message);
+                (event.getProxy()).send(connInfo, payload);
             }
 
 

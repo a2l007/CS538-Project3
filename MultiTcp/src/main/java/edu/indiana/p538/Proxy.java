@@ -108,7 +108,7 @@ public class Proxy implements Runnable {
         this.worker.processData(this, sockCh, this.readBuf.array(), numRead);
     }
 
-    public void send(Socket socket, byte[] data){
+    public void send(ConnInfo connInfo, byte[] data){
         //TODO: IMPLEMENT
     }
 
