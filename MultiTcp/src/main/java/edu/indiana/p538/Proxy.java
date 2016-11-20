@@ -9,8 +9,8 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
-import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 /**
  * Created by ladyl on 11/19/2016.
@@ -25,6 +25,7 @@ public class Proxy implements Runnable {
 
     private ByteBuffer readBuf = ByteBuffer.allocate(8208); //buffer equal to 2 pipe messages; can adjust as necessary
 
+    private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<ProxyEvents>(50);
 
     public Proxy(int port. ProxyWorker worker) throws IOException{
         this.port = port;
@@ -44,6 +45,15 @@ public class Proxy implements Runnable {
     public void run() {
         while(true){
             try {
+
+                Iterator<ProxyEvents> iter = this.pendingEvents.iterator();
+                while(iter.hasNext()){
+                    ProxyEvents event = iter.next();
+                    switch (event.ops){
+                        case ProxyEvents.
+                    }
+                }
+
                 this.selector.select();
                 Iterator<SelectionKey> keys = this.selector.selectedKeys().iterator();
                 while(keys.hasNext()){
@@ -111,15 +121,25 @@ public class Proxy implements Runnable {
     public void send(ConnInfo connInfo, byte[] data){
         //TODO: IMPLEMENT
         //add it to the buffer queue, send on as we can
+        this.pendingEvents.add(new ProxyEvents(connInfo, data, SelectionKey.OP_WRITE));
+
+        this.selector.wakeup();
     }
 
     public void establishConn(ConnInfo msgInfo, byte[] data){
         //TODO: IMPLEMENT
         //add to event queue; create connection as possible
+        this.pendingEvents.add(new ProxyEvents(msgInfo, data, SelectionKey.OP_CONNECT));
+
+        this.selector.wakeup();
     }
 
     public void sendFin(ConnInfo connInfo, int reason){
         //TODO: IMPLEMENT
         //add to event queue; end connection as possible
+        //how to close?????
+        this.pendingEvents.add(new ProxyEvents(connInfo, new byte[0], SelectionKey.OP_CONNECT));
+
+        this.selector.wakeup();
     }
 }
