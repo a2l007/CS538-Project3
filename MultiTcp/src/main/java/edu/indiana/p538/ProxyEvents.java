@@ -7,9 +7,9 @@ import java.nio.channels.SelectionKey;
  */
 public class ProxyEvents {
     /* CONSTANTS */
-    public int CONNECTING = SelectionKey.OP_CONNECT;
-    public int ENDING = SelectionKey.OP_CONNECT; //is this right???
-    public int WRITING = SelectionKey.OP_WRITE;
+    public static int CONNECTING = 1;
+    public static int ENDING = 100;
+    public static int WRITING = 10;
 
     /* FIELDS */
     private ConnInfo connInfo;

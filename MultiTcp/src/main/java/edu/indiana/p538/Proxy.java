@@ -45,12 +45,19 @@ public class Proxy implements Runnable {
     public void run() {
         while(true){
             try {
+                //in order to do this we need to figure out how to find specific sockets
+                //either we are going to be iterating over all the sockets as well as the
+                //events, or we are going to have to find the correct method to use to find
+                //a specific socket.
 
+                //it would be great if we could ID a socket by IP/port pair with the selector
+                //I don't have internet right now but that should be the next step to figuring this out.
                 Iterator<ProxyEvents> iter = this.pendingEvents.iterator();
                 while(iter.hasNext()){
                     ProxyEvents event = iter.next();
                     switch (event.ops){
-                        case ProxyEvents.
+                        case ProxyEvents.WRITING:
+                            //SelectionKey key = event.
                     }
                 }
 
@@ -121,7 +128,8 @@ public class Proxy implements Runnable {
     public void send(ConnInfo connInfo, byte[] data){
         //TODO: IMPLEMENT
         //add it to the buffer queue, send on as we can
-        this.pendingEvents.add(new ProxyEvents(connInfo, data, SelectionKey.OP_WRITE));
+        //NOPE WE DO NOT NEED THE SOCKET STOP THINKING WE DO JEEZ.
+        this.pendingEvents.add(new ProxyEvents(connInfo, data, ProxyEvents.WRITING));
 
         this.selector.wakeup();
     }
@@ -129,7 +137,7 @@ public class Proxy implements Runnable {
     public void establishConn(ConnInfo msgInfo, byte[] data){
         //TODO: IMPLEMENT
         //add to event queue; create connection as possible
-        this.pendingEvents.add(new ProxyEvents(msgInfo, data, SelectionKey.OP_CONNECT));
+        this.pendingEvents.add(new ProxyEvents(msgInfo, data, ProxyEvents.CONNECTING));
 
         this.selector.wakeup();
     }
@@ -138,7 +146,7 @@ public class Proxy implements Runnable {
         //TODO: IMPLEMENT
         //add to event queue; end connection as possible
         //how to close?????
-        this.pendingEvents.add(new ProxyEvents(connInfo, new byte[0], SelectionKey.OP_CONNECT));
+        this.pendingEvents.add(new ProxyEvents(connInfo, new byte[0], ProxyEvents.ENDING));
 
         this.selector.wakeup();
     }
