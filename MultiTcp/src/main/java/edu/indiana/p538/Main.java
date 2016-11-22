@@ -19,7 +19,7 @@ public class Main {
 
         //Socket to listen for LP
         //(new Thread(new ProxyThread(PROXY_PORT))).start();
-
+try{
         ProxyWorker worker = new ProxyWorker();
         new Thread(worker).start();
         new Thread(new Proxy(PROXY_PORT, worker)).start();
@@ -29,13 +29,13 @@ public class Main {
             while(listening){
                 System.out.println("Liatening");
                 new ProxyThread(proxyServer.accept()).start();
-                System.out.println("Liatening again");
+                System.out.println("Liatening again");*/
 
-            }
+
         }catch(Exception e){
             System.err.println("Error opening socket");
             System.exit(-1);
         }
-        */
+
     }
 }

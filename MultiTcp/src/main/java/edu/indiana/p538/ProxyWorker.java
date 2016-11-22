@@ -21,13 +21,13 @@ public class ProxyWorker implements Runnable{
     public void processData(Proxy proxy, SocketChannel socket, byte[] data, int count){
         byte[] dataCopy = new byte[count];
         System.arraycopy(data, 0, dataCopy, 0, count);
-        queue.add(new ProxyDataEvent(socket, dataCopy));
+        queue.add(new ProxyDataEvent(proxy,socket, dataCopy));
         queue.notify();
     }
 
     @Override
     public void run() {
-        ProxyDataEvent event;
+        ProxyDataEvent event=null;
         while(true){
             try {
                 event = queue.take();
@@ -44,12 +44,14 @@ public class ProxyWorker implements Runnable{
                 (event.getProxy()).establishConn(msgInfo, message);
             }else if(PacketAnalyzer.isMFin(header)){
                 //else test for MFIN
+                ConnInfo msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
+
                 byte payload = message[AppConstants.MHEADER];
                 int reason = PacketAnalyzer.getMFin(payload);
                 int connId = PacketAnalyzer.getConnId(header);
                 if(reason == AppConstants.FIN_FLAG || reason == AppConstants.RST_FLAG){
                     //end connection
-                    (event.getProxy()).sendFin(connId, reason);
+                    (event.getProxy()).sendFin(msgInfo, reason);
                 }
             }else{
                 //else process and send data
