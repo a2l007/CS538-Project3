@@ -4,17 +4,22 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by ladyl on 11/11/2016.
  */
 public class ProxyThread implements Runnable{
 
-    /*FIELDS*/
-    protected ServerSocket socket = null;
-    protected int serverPort=6000;
-    protected Thread runningThread= null;
-    protected boolean listening=true;
+    /*FIELDS AND CONSTANTS*/
+    private ServerSocket socket = null;
+    private int serverPort=6000;
+    private Thread runningThread= null;
+
+    /*GLOBAL VARIABLES*/
+    private static ConcurrentHashMap<Integer, byte[]> MESSAGE_DATA = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<Integer, ClientThread> CLIENTS = new ConcurrentHashMap<>();
 
     /*CONSTRUCTORS*/
     public ProxyThread(int port){
@@ -22,6 +27,8 @@ public class ProxyThread implements Runnable{
     }
 
     public void run() {
+
+        boolean listening=true;
         synchronized (this) {
             this.runningThread = Thread.currentThread();
         }
@@ -49,8 +56,7 @@ public class ProxyThread implements Runnable{
 
     }
 
-    /* ProxyThreadWorker: Thread to handle different pipes between LP and RP
-     *
+    /* ProxyThreadWorker: Threads to handle different pipes between LP and RP
      */
     private class ProxyThreadWorker implements Runnable {
         private Socket clientSocket = null;
@@ -84,18 +90,19 @@ public class ProxyThread implements Runnable{
                         //test if MSYN or MFIN
                         if(PacketAnalyzer.isMSyn(header)){
                             //get destIp and destPort
-                            //not convinced we need this anymore....
                             ConnInfo newConn = PacketAnalyzer.fetchConnectionInfo(
                                     Arrays.copyOfRange(clientInput, 0, AppConstants.MSYN_LEN));
                             //start new socket??
                             //how is this going to work....
-                            (new Thread(new ClientThread(newConn))).start();
-                     /*    ClientThread client=new ClientThread(newConn);
-                        client.start();
-                       synchronized (client){
-                            //get the data byte array and notify client thread to resume data transfer
-                            client.notify();
-                        }*/
+                            ClientThread client = new ClientThread(newConn);
+                            int connId = PacketAnalyzer.getConnId(header);
+
+                            //sync necessary??? don't think so....
+                            if(!CLIENTS.containsKey(connId)){
+                                CLIENTS.put(connId, client);
+                                break; //is necessary? i don't feel good about having this here....
+                            }
+                            new Thread(client).start();
 
                         }else if(PacketAnalyzer.isMFin(header)){
                             //end connection with reason given
@@ -104,7 +111,11 @@ public class ProxyThread implements Runnable{
                             if(reason == AppConstants.FIN_FLAG){
                                 int connId = PacketAnalyzer.getConnId(header);
                                 //end connection
-                                //TODO: ELSE IF FIN
+                                //TODO: IF FIN
+                                if(CLIENTS.containsKey(connId)){
+                                    ClientThread toExit = CLIENTS.get(connId);
+                                    toExit.sendFin(); //TODO: IMPLEMENT SENDFIN()
+                                }
                             }//TODO: ELSE IF RST
 
                         }else if(PacketAnalyzer.getLen(header) != 0){

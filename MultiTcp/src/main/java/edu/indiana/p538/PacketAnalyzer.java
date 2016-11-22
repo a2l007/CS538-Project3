@@ -99,4 +99,9 @@ public class PacketAnalyzer {
         return (int) payload;
     }
 
+    public static byte[] getPayload(byte[] message){
+        byte[] payload = Arrays.copyOfRange(message, AppConstants.MHEADER, message.length);
+        return payload;
+    }
+
 }

@@ -9,6 +9,7 @@ import java.net.Socket;
 public class ClientThread implements Runnable{
     /*FIELDS AND CONSTANTS */
     public ConnInfo conn;
+    public static byte dataMessage[];
 
     /*GETTERS AND SETTERS*/
     public byte[] getDataMessage() {
@@ -19,7 +20,6 @@ public class ClientThread implements Runnable{
         this.dataMessage = dataMessage;
     }
 
-    public static byte dataMessage[];
     private Socket socket = null;
     public ClientThread(ConnInfo c){
         this.conn=c;
