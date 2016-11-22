@@ -1,6 +1,7 @@
 package edu.indiana.p538;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -8,10 +9,11 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by ladyl on 11/19/2016.
@@ -26,10 +28,12 @@ public class Proxy implements Runnable {
 
     private ByteBuffer readBuf = ByteBuffer.allocate(8208); //buffer equal to 2 pipe messages; can adjust as necessary
 
-    private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(50);
-    private HashMap<ConnInfo, Socket> allSockets = new HashMap<>();
 
-    public Proxy(int port. ProxyWorker worker) throws IOException{
+    private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(50);
+    private ConcurrentHashMap<InetAddress,SocketChannel> connectionChannelMap=new ConcurrentHashMap<>();
+    private ConcurrentHashMap<SocketChannel,ArrayList<byte[]>> channelDataMap=new ConcurrentHashMap<>();
+
+    public Proxy(int port, ProxyWorker worker) throws IOException{
         this.port = port;
         this.serverSocketChannel = ServerSocketChannel.open();
         this.worker = worker;
@@ -57,9 +61,17 @@ public class Proxy implements Runnable {
                 Iterator<ProxyEvents> iter = this.pendingEvents.iterator();
                 while(iter.hasNext()){
                     ProxyEvents event = iter.next();
-                    switch (event.ops){
+                    switch (event.getType()){
                         case ProxyEvents.WRITING:
-                            //SelectionKey key = event.
+                            SocketChannel connectChannel=this.connectionChannelMap.get(event.getConnInfo().getIp());
+                            SelectionKey key = connectChannel.keyFor(this.selector);
+                            key.interestOps(event.getOps());
+                            break;
+                        case ProxyEvents.CONNECTING:
+                            connectChannel=this.connectionChannelMap.get(event.getConnInfo().getIp());
+                            //Need to double check the register call.
+                            connectChannel.register(this.selector,event.getOps());
+
                     }
                 }
 
@@ -68,8 +80,10 @@ public class Proxy implements Runnable {
                 while(keys.hasNext()){
                     SelectionKey key = keys.next();
                     keys.remove();
-
                     if(key.isValid()){
+                        if(key.isConnectable()){
+                            this.completeConnection(key);
+                        }
                         if(key.isAcceptable()){
                             //accept key
                             this.accept(key);
@@ -133,7 +147,10 @@ public class Proxy implements Runnable {
         //TODO: IMPLEMENT
         //add it to the buffer queue, send on as we can
         //NOPE WE DO NOT NEED THE SOCKET STOP THINKING WE DO JEEZ.
-        this.pendingEvents.add(new ProxyEvents(connInfo, data, ProxyEvents.WRITING));
+        SocketChannel connChannel=this.connectionChannelMap.get(connInfo.getIp());
+        //Null check needed
+        //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
+        this.pendingEvents.add(new ProxyEvents(connInfo, data, ProxyEvents.WRITING,SelectionKey.OP_WRITE));
 
         this.selector.wakeup();
     }
@@ -141,17 +158,44 @@ public class Proxy implements Runnable {
     public void establishConn(ConnInfo msgInfo, byte[] data){
         //TODO: IMPLEMENT
         //add to event queue; create connection as possible
-        this.pendingEvents.add(new ProxyEvents(msgInfo, data, ProxyEvents.CONNECTING));
+        try {
+            SocketChannel serverChannel = SocketChannel.open();
+            serverChannel.configureBlocking(false);
 
-        this.selector.wakeup();
+            // Kick off connection establishment
+            //I've temporarily added port as the key to this map. Should we think of making this the connectionID?
+            connectionChannelMap.put(msgInfo.getIp(),serverChannel);
+
+            serverChannel.connect(new InetSocketAddress(msgInfo.getIp(), this.port));
+            this.pendingEvents.add(new ProxyEvents(msgInfo, data, ProxyEvents.CONNECTING,SelectionKey.OP_CONNECT));
+
+            this.selector.wakeup();
+        }
+        catch(IOException e){
+            e.printStackTrace();
+        }
     }
 
     public void sendFin(ConnInfo connInfo, int reason){
         //TODO: IMPLEMENT
         //add to event queue; end connection as possible
-        //how to close?????
-        this.pendingEvents.add(new ProxyEvents(connInfo, new byte[0], ProxyEvents.ENDING));
+        //how to close????? Yeah how to?
+        this.pendingEvents.add(new ProxyEvents(connInfo, new byte[0], SelectionKey.OP_CONNECT,ProxyEvents.ENDING));
 
         this.selector.wakeup();
+    }
+    private void completeConnection(SelectionKey key) throws IOException {
+        SocketChannel socketChannel = (SocketChannel) key.channel();
+        //Complete connecting. This would return true if the connection is successful
+
+        try {
+            socketChannel.finishConnect();
+        } catch (IOException e) {
+            key.cancel();
+            return;
+        }
+
+        //Since connection is established, show interest in writing data to the server
+        key.interestOps(SelectionKey.OP_WRITE);
     }
 }
