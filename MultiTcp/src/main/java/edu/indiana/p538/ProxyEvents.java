@@ -1,5 +1,6 @@
 package edu.indiana.p538;
 
+import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 
 /**
@@ -7,26 +8,18 @@ import java.nio.channels.SelectionKey;
  */
 public class ProxyEvents {
     /* CONSTANTS */
-    public static final int CONNECTING = 1;
-    public static final int ENDING = 100;
-    public static final int  WRITING = 10;
+    protected static final int CONNECTING = 1;
+    protected static final int ENDING = 100;
+    protected static final int  WRITING = 10;
 
     /* FIELDS */
-    private ConnInfo connInfo;
+    private InetSocketAddress connInfo;
     private byte[] data;
-
-    public int getType() {
-        return type;
-    }
-
-    public void setType(int type) {
-        this.type = type;
-    }
 
     private int type;
     private int ops;
 
-    public ProxyEvents(ConnInfo connInfo, byte[] message, int type, int ops){
+    protected ProxyEvents(InetSocketAddress connInfo, byte[] message, int type, int ops){
         this.connInfo = connInfo;
         this.data = message;
         this.ops = ops;
@@ -39,11 +32,21 @@ public class ProxyEvents {
         return data;
     }
 
-    public ConnInfo getConnInfo() {
+    protected InetSocketAddress getConnInfo() {
         return connInfo;
     }
 
-    public int getOps() {
+    protected int getOps() {
         return ops;
     }
+
+    protected int getType() {
+        return type;
+    }
+
+    /* SETTERS */
+    public void setType(int type) {
+        this.type = type;
+    }
+
 }
