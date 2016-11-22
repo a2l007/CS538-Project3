@@ -114,7 +114,7 @@ public class ProxyThread implements Runnable{
                                 //TODO: IF FIN
                                 if(CLIENTS.containsKey(connId)){
                                     ClientThread toExit = CLIENTS.get(connId);
-                                    toExit.sendFin(); //TODO: IMPLEMENT SENDFIN()
+                                   // toExit.sendFin(); //TODO: IMPLEMENT SENDFIN()
                                 }
                             }//TODO: ELSE IF RST
 
