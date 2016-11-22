@@ -8,6 +8,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -25,7 +26,8 @@ public class Proxy implements Runnable {
 
     private ByteBuffer readBuf = ByteBuffer.allocate(8208); //buffer equal to 2 pipe messages; can adjust as necessary
 
-    private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<ProxyEvents>(50);
+    private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(50);
+    private HashMap<ConnInfo, Socket> allSockets = new HashMap<>();
 
     public Proxy(int port. ProxyWorker worker) throws IOException{
         this.port = port;
@@ -92,6 +94,8 @@ public class Proxy implements Runnable {
         SocketChannel sockCh = servCh.accept();
         Socket socket = sockCh.socket();
         sockCh.configureBlocking(false);
+
+        //add socket to the HashMap with ConnInfo
 
         //tells the selector we want to know when data is available to be read
         sockCh.register(this.selector, SelectionKey.OP_READ);
