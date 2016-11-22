@@ -28,9 +28,10 @@ public class Proxy implements Runnable {
 
     private ByteBuffer readBuf = ByteBuffer.allocate(8208); //buffer equal to 2 pipe messages; can adjust as necessary
 
-    private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<ProxyEvents>(50);
-    private ConcurrentHashMap<InetAddress,SocketChannel> connectionChannelMap=new ConcurrentHashMap<>();
-    private ConcurrentHashMap<SocketChannel,ArrayList<byte[]>> channelDataMap=new ConcurrentHashMap<>();
+
+    private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(50);
+    private ConcurrentHashMap<InetSocketAddress,SocketChannel> connectionChannelMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Integer,byte[]> outOfOrder = new ConcurrentHashMap<>();
 
     public Proxy(int port, ProxyWorker worker) throws IOException{
         this.port = port;
@@ -62,12 +63,12 @@ public class Proxy implements Runnable {
                     ProxyEvents event = iter.next();
                     switch (event.getType()){
                         case ProxyEvents.WRITING:
-                            SocketChannel connectChannel=this.connectionChannelMap.get(event.getConnInfo().getIp());
+                            SocketChannel connectChannel=this.connectionChannelMap.get(event.getConnInfo());
                             SelectionKey key = connectChannel.keyFor(this.selector);
                             key.interestOps(event.getOps());
                             break;
                         case ProxyEvents.CONNECTING:
-                            connectChannel=this.connectionChannelMap.get(event.getConnInfo().getIp());
+                            connectChannel=this.connectionChannelMap.get(event.getConnInfo());
                             //Need to double check the register call.
                             connectChannel.register(this.selector,event.getOps());
 
@@ -105,8 +106,9 @@ public class Proxy implements Runnable {
         ServerSocketChannel servCh = (ServerSocketChannel) key.channel();
 
         SocketChannel sockCh = servCh.accept();
-        Socket socket = sockCh.socket();
+        Socket socket = sockCh.socket(); //why is this line here? is it necessary?
         sockCh.configureBlocking(false);
+
 
         //tells the selector we want to know when data is available to be read
         sockCh.register(this.selector, SelectionKey.OP_READ);
@@ -140,11 +142,11 @@ public class Proxy implements Runnable {
         this.worker.processData(this, sockCh, this.readBuf.array(), numRead);
     }
 
-    public void send(ConnInfo connInfo, byte[] data){
+    protected  void send(InetSocketAddress connInfo, byte[] data){
         //TODO: IMPLEMENT
         //add it to the buffer queue, send on as we can
         //NOPE WE DO NOT NEED THE SOCKET STOP THINKING WE DO JEEZ.
-        SocketChannel connChannel=this.connectionChannelMap.get(connInfo.getIp());
+        SocketChannel connChannel=this.connectionChannelMap.get(connInfo);
         //Null check needed
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
         this.pendingEvents.add(new ProxyEvents(connInfo, data, ProxyEvents.WRITING,SelectionKey.OP_WRITE));
@@ -152,7 +154,7 @@ public class Proxy implements Runnable {
         this.selector.wakeup();
     }
 
-    public void establishConn(ConnInfo msgInfo, byte[] data){
+    protected void establishConn(InetSocketAddress msgInfo, byte[] data){
         //TODO: IMPLEMENT
         //add to event queue; create connection as possible
         try {
@@ -161,9 +163,9 @@ public class Proxy implements Runnable {
 
             // Kick off connection establishment
             //I've temporarily added port as the key to this map. Should we think of making this the connectionID?
-            connectionChannelMap.put(msgInfo.getIp(),serverChannel);
+            connectionChannelMap.put(msgInfo,serverChannel);
 
-            serverChannel.connect(new InetSocketAddress(msgInfo.getIp(), this.port));
+            serverChannel.connect(msgInfo);
             this.pendingEvents.add(new ProxyEvents(msgInfo, data, ProxyEvents.CONNECTING,SelectionKey.OP_CONNECT));
 
             this.selector.wakeup();
@@ -173,7 +175,7 @@ public class Proxy implements Runnable {
         }
     }
 
-    public void sendFin(ConnInfo connInfo, int reason){
+    protected void sendFin(InetSocketAddress connInfo, int reason){
         //TODO: IMPLEMENT
         //add to event queue; end connection as possible
         //how to close????? Yeah how to?

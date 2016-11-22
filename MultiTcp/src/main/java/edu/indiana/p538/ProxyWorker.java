@@ -1,5 +1,6 @@
 package edu.indiana.p538;
 
+import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -39,12 +40,12 @@ public class ProxyWorker implements Runnable{
             byte[] header = Arrays.copyOfRange(message, 0, AppConstants.MHEADER);
             //test for MSYN
             if(PacketAnalyzer.isMSyn(header)){
-                ConnInfo msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
+                InetSocketAddress msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
                 //send back to the proxy
                 (event.getProxy()).establishConn(msgInfo, message);
             }else if(PacketAnalyzer.isMFin(header)){
                 //else test for MFIN
-                ConnInfo msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
+                InetSocketAddress msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
 
                 byte payload = message[AppConstants.MHEADER];
                 int reason = PacketAnalyzer.getMFin(payload);
@@ -56,7 +57,7 @@ public class ProxyWorker implements Runnable{
             }else{
                 //else process and send data
                 byte[] payload = PacketAnalyzer.getPayload(message);
-                ConnInfo connInfo = PacketAnalyzer.fetchConnectionInfo(header);
+                InetSocketAddress connInfo = PacketAnalyzer.fetchConnectionInfo(header);
                 //return to the sender
                 (event.getProxy()).send(connInfo, payload);
             }

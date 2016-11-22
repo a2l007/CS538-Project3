@@ -2,6 +2,7 @@ package edu.indiana.p538;
 
 import javax.xml.bind.DatatypeConverter;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -16,7 +17,7 @@ public class PacketAnalyzer {
 	 * Returns a connection object with information retrieved from the SYN
 	 * packet
 	 */
-	public static ConnInfo fetchConnectionInfo(byte[] packetStream) {
+	public static InetSocketAddress fetchConnectionInfo(byte[] packetStream) {
 		int packetPointer = 0, synPointer = 0;
         byte[] ip = Arrays.copyOfRange(packetStream, 8, 12);
         byte[] port = Arrays.copyOfRange(packetStream, 12, 14);
@@ -24,8 +25,7 @@ public class PacketAnalyzer {
         try {
             InetAddress ipAddress = InetAddress.getByAddress(DatatypeConverter.parseHexBinary(Utils.bytesToHex(ip)));
             int portNumber=Utils.hextoDecimal(Utils.bytesToHex(port));
-            ConnInfo connection=new ConnInfo(ipAddress,portNumber);
-            return connection;
+            return new InetSocketAddress(ipAddress,portNumber);
         }
         catch(UnknownHostException e){
             throw new RuntimeException("Unknown host",e);
