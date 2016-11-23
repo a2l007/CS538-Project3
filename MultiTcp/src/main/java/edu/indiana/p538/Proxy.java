@@ -149,7 +149,8 @@ public class Proxy implements Runnable {
         SocketChannel connChannel=this.connectionChannelMap.get(connInfo);
         //Null check needed
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
-        this.pendingEvents.add(new ProxyEvents(connInfo, data, ProxyEvents.WRITING,SelectionKey.OP_WRITE));
+        //Need to read data into buffer here and raise ProxyDataEvent
+        //this.pendingEvents.add(new ProxyEvents(connInfo, data, ProxyEvents.WRITING,SelectionKey.OP_WRITE));
 
         this.selector.wakeup();
     }
@@ -166,9 +167,10 @@ public class Proxy implements Runnable {
             connectionChannelMap.put(msgInfo,serverChannel);
 
             serverChannel.connect(msgInfo);
-            this.pendingEvents.add(new ProxyEvents(msgInfo, data, ProxyEvents.CONNECTING,SelectionKey.OP_CONNECT));
-
-            this.selector.wakeup();
+            //OP_CONNECT is getting masked by the call from ProxyWorker. Safe to listen to OP_WRITE here
+            this.pendingEvents.add(new ProxyEvents(msgInfo, data, ProxyEvents.CONNECTING,SelectionKey.OP_WRITE));
+            //No point in waking up here as there may not be enough data to write into the channel
+            //this.selector.wakeup();
         }
         catch(IOException e){
             e.printStackTrace();
@@ -186,6 +188,7 @@ public class Proxy implements Runnable {
     private void completeConnection(SelectionKey key) throws IOException {
         SocketChannel socketChannel = (SocketChannel) key.channel();
         //Complete connecting. This would return true if the connection is successful
+        socketChannel.configureBlocking(false);
 
         try {
             socketChannel.finishConnect();
