@@ -24,8 +24,10 @@ public class PacketAnalyzer {
 
         try {
             InetAddress ipAddress = InetAddress.getByAddress(DatatypeConverter.parseHexBinary(Utils.bytesToHex(ip)));
-            int portNumber=Utils.hextoDecimal(Utils.bytesToHex(port));
-            return new InetSocketAddress(ipAddress,portNumber);
+            ByteBuffer buf = ByteBuffer.wrap(port);
+            buf.order(ByteOrder.LITTLE_ENDIAN);
+            int portNum = (int) buf.getShort();
+            return new InetSocketAddress(ipAddress,portNum);
         }
         catch(UnknownHostException e){
             throw new RuntimeException("Unknown host",e);
@@ -34,7 +36,6 @@ public class PacketAnalyzer {
 
 	public static boolean isMSyn(byte[] header){
         byte[] head3 = Arrays.copyOfRange(header, 6, 8);
-		System.out.println(Utils.bytesToHex(head3));
 		if(Utils.bytesToHex(head3).equals("FFFF")){
 			return true;
 		}
