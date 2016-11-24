@@ -90,19 +90,19 @@ public class ProxyThread implements Runnable{
                         //test if MSYN or MFIN
                         if(PacketAnalyzer.isMSyn(header)){
                             //get destIp and destPort
-                            ConnInfo newConn = PacketAnalyzer.fetchConnectionInfo(
-                                    Arrays.copyOfRange(clientInput, 0, AppConstants.MSYN_LEN));
+                            //ConnInfo newConn = PacketAnalyzer.fetchConnectionInfo(
+                          //          Arrays.copyOfRange(clientInput, 0, AppConstants.MSYN_LEN));
                             //start new socket??
                             //how is this going to work....
-                            ClientThread client = new ClientThread(newConn);
+                           // ClientThread client = new ClientThread(newConn);
                             int connId = PacketAnalyzer.getConnId(header);
 
                             //sync necessary??? don't think so....
                             if(!CLIENTS.containsKey(connId)){
-                                CLIENTS.put(connId, client);
+                         //       CLIENTS.put(connId, client);
                                 break; //is necessary? i don't feel good about having this here....
                             }
-                            new Thread(client).start();
+                      //      new Thread(client).start();
 
                         }else if(PacketAnalyzer.isMFin(header)){
                             //end connection with reason given
