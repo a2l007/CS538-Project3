@@ -18,12 +18,13 @@ public class ProxyEvents {
 
     private int type;
     private int ops;
-
-    protected ProxyEvents(InetSocketAddress connInfo, byte[] message, int type, int ops){
+    private int connId;
+    protected ProxyEvents(InetSocketAddress connInfo, byte[] message, int connId, int type, int ops){
         this.connInfo = connInfo;
         this.data = message;
         this.ops = ops;
         this.type=type;
+        this.connId=connId;
     }
 
     /* GETTERS */
@@ -42,6 +43,10 @@ public class ProxyEvents {
 
     protected int getType() {
         return type;
+    }
+
+    protected int getConnId() {
+        return connId;
     }
 
     /* SETTERS */
