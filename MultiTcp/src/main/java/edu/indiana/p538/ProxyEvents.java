@@ -19,8 +19,7 @@ public class ProxyEvents {
     private int type;
     private int ops;
     private int connId;
-    protected ProxyEvents(InetSocketAddress connInfo, byte[] message, int connId, int type, int ops){
-        this.connInfo = connInfo;
+    protected ProxyEvents(byte[] message, int connId, int type, int ops){
         this.data = message;
         this.ops = ops;
         this.type=type;

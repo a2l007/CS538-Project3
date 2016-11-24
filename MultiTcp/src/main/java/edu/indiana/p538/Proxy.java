@@ -31,7 +31,7 @@ public class Proxy implements Runnable {
 
 
     private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(50);
-    private ConcurrentHashMap<InetSocketAddress,SocketChannel> connectionChannelMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Integer,SocketChannel> connectionChannelMap = new ConcurrentHashMap<>();
     //this map is to map connection IDs with the list of data
     private ConcurrentHashMap<Integer,ArrayList<byte[]>> outOfOrder = new ConcurrentHashMap<>();
 
@@ -66,12 +66,12 @@ public class Proxy implements Runnable {
                     this.pendingEvents.remove(event);
                     switch (event.getType()){
                         case ProxyEvents.WRITING:
-                            SocketChannel connectChannel=this.connectionChannelMap.get(event.getConnInfo());
+                            SocketChannel connectChannel=this.connectionChannelMap.get(event.getConnId());
                             SelectionKey key = connectChannel.keyFor(this.selector);
                             key.interestOps(event.getOps());
                             break;
                         case ProxyEvents.CONNECTING:
-                            connectChannel=this.connectionChannelMap.get(event.getConnInfo());
+                            connectChannel=this.connectionChannelMap.get(event.getConnId());
                             //Need to double check the register call.
                             //I'm attaching the connectionID with this socket for now.
                             // We might to make this an arraylist of connectionIDs soon
@@ -95,6 +95,7 @@ public class Proxy implements Runnable {
                         }else if(key.isReadable()){
                             //read the key
                             this.read(key);
+
                         }else if(key.isWritable()){
                             //write to the key
                             this.write(key);
@@ -121,12 +122,9 @@ public class Proxy implements Runnable {
         SocketChannel sockCh = (SocketChannel) key.channel();
         //clear the buffer. if we've reached this point again we've already passed data on
         this.readBuf.clear();
-
         int numRead;
         try{
             numRead = sockCh.read(this.readBuf);
-            key.cancel();
-            sockCh.close();
         }catch (IOException e){
             //entering here means the remote has forced the connection closed
             key.cancel();
@@ -145,16 +143,18 @@ public class Proxy implements Runnable {
         //hand to worker thread only if the read is called from the LP socket
         if(key.attachment()==null) {
             this.worker.processData(this, sockCh, this.readBuf.array(), numRead);
+            key.interestOps(SelectionKey.OP_READ);
+
         }
         else{
             //Just a dummy print statement for now to view the data
-            System.out.println(new String(this.readBuf.array()));
+            System.out.write(this.readBuf.array());
             key.interestOps(SelectionKey.OP_WRITE);
 
         }
     }
 
-    protected  void send(InetSocketAddress connInfo, byte[] data,int connId){
+    protected  void send(int connInfo, byte[] data,int seqId){
         //TODO: IMPLEMENT
         //add it to the buffer queue, send on as we can
         //NOPE WE DO NOT NEED THE SOCKET STOP THINKING WE DO JEEZ.
@@ -162,17 +162,17 @@ public class Proxy implements Runnable {
         //Null check needed
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
         //Need to read data into buffer here and raise ProxyDataEvent
-        this.pendingEvents.add(new ProxyEvents(connInfo, data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE));
+        this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE));
         //Pull the data based on the connection ID
-        if(outOfOrder.containsKey(connId)){
-            ArrayList<byte[]> dataList=outOfOrder.get(connId);
+        if(outOfOrder.containsKey(seqId)){
+            ArrayList<byte[]> dataList=outOfOrder.get(seqId);
             dataList.add(data);
-            outOfOrder.put(connId,dataList);
+            outOfOrder.put(seqId,dataList);
         }
         else{
             ArrayList<byte[]> dataList=new ArrayList<>(20);
             dataList.add(data);
-            outOfOrder.put(connId,dataList);
+            outOfOrder.put(seqId,dataList);
         }
        // this.selector.wakeup();
     }
@@ -185,9 +185,9 @@ public class Proxy implements Runnable {
             serverChannel.configureBlocking(false);
             // Kick off connection establishment
             //I've temporarily added port as the key to this map. Should we think of making this the connectionID?
-            connectionChannelMap.put(msgInfo,serverChannel);
+            connectionChannelMap.put(connId,serverChannel);
             //OP_CONNECT is getting masked by the call from ProxyWorker. Safe to listen to OP_WRITE here
-            this.pendingEvents.add(new ProxyEvents(msgInfo, data, connId,ProxyEvents.CONNECTING,SelectionKey.OP_CONNECT));
+            this.pendingEvents.add(new ProxyEvents( data, connId,ProxyEvents.CONNECTING,SelectionKey.OP_CONNECT));
             //serverChannel.connect(msgInfo);
             //No point in waking up here as there may not be enough data to write into the channel
             //this.selector.wakeup();
@@ -204,7 +204,6 @@ public class Proxy implements Runnable {
         //add to event queue; end connection as possible
         //how to close????? Yeah how to?
         //this.pendingEvents.add(new ProxyEvents(connInfo, new byte[0], SelectionKey.OP_CONNECT,ProxyEvents.ENDING));
-
         this.selector.wakeup();
     }
     private void completeConnection(SelectionKey key) throws IOException {
@@ -221,7 +220,7 @@ public class Proxy implements Runnable {
         }
 
         //Since connection is established, show interest in writing data to the server
-      //  key.interestOps(SelectionKey.OP_WRITE);
+        key.interestOps(SelectionKey.OP_WRITE);
     }
 
     private void write(SelectionKey key) throws IOException{
