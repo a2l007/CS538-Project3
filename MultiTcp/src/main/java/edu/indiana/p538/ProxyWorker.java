@@ -39,11 +39,15 @@ public class ProxyWorker implements Runnable{
 
             byte[] message = event.getData();
             byte[] header = Arrays.copyOfRange(message, 0, AppConstants.MHEADER);
+            //System.out.println("Message is"+Utils.bytesToHex(header));
+
             //test for MSYN
             if(PacketAnalyzer.isMSyn(header)){
                 InetSocketAddress msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
+                int connId=PacketAnalyzer.getConnId(header);
+
                 //send back to the proxy
-                (event.getProxy()).establishConn(msgInfo, message);
+                (event.getProxy()).establishConn(msgInfo, message,connId);
             }else if(PacketAnalyzer.isMFin(header)){
                 //else test for MFIN
                 InetSocketAddress msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
@@ -58,9 +62,11 @@ public class ProxyWorker implements Runnable{
             }else{
                 //else process and send data
                 byte[] payload = PacketAnalyzer.getPayload(message);
-                InetSocketAddress connInfo = PacketAnalyzer.fetchConnectionInfo(header);
+                int seqNumber=PacketAnalyzer.getSeqNum(header);
+                int connId=PacketAnalyzer.getConnId(header);
+
                 //return to the sender
-                (event.getProxy()).send(connInfo, payload);
+                (event.getProxy()).send(connId, payload,seqNumber);
             }
 
 
