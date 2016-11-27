@@ -1,10 +1,7 @@
 package edu.indiana.p538;
 
 import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -33,7 +30,8 @@ public class Proxy implements Runnable {
     private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(50);
     private ConcurrentHashMap<Integer,SocketChannel> connectionChannelMap = new ConcurrentHashMap<>();
     //this map is to map connection IDs with the list of data
-    private ConcurrentHashMap<Integer,ArrayList<byte[]>> outOfOrder = new ConcurrentHashMap<>();
+    //Renamed this map to avoid confusion
+    private ConcurrentHashMap<Integer,ArrayList<byte[]>> connectionDataList = new ConcurrentHashMap<>();
 
     public Proxy(int port, ProxyWorker worker) throws IOException{
         this.port = port;
@@ -76,6 +74,7 @@ public class Proxy implements Runnable {
                             //I'm attaching the connectionID with this socket for now.
                             // We might to make this an arraylist of connectionIDs soon
                             connectChannel.register(this.selector,event.getOps(),event.getConnId());
+                            break;
 
                     }
                 }
@@ -134,6 +133,7 @@ public class Proxy implements Runnable {
 
         if(numRead == -1){
             //socket shut down cleanly. cancel channel
+            System.out.println("Closed socket");
             key.channel().close();
             key.cancel();
             return;
@@ -147,8 +147,10 @@ public class Proxy implements Runnable {
 
         }
         else{
-            //Just a dummy print statement for now to view the data
+            //System.out.println("<Data Print>");
             System.out.write(this.readBuf.array());
+            //Just a dummy print statement for now to view the data
+            //System.out.write(this.readBuf.array());
             key.interestOps(SelectionKey.OP_WRITE);
 
         }
@@ -164,15 +166,15 @@ public class Proxy implements Runnable {
         //Need to read data into buffer here and raise ProxyDataEvent
         this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE));
         //Pull the data based on the connection ID
-        if(outOfOrder.containsKey(seqId)){
-            ArrayList<byte[]> dataList=outOfOrder.get(seqId);
+        if(connectionDataList.containsKey(connInfo)){
+            ArrayList<byte[]> dataList= connectionDataList.get(connInfo);
             dataList.add(data);
-            outOfOrder.put(seqId,dataList);
+            connectionDataList.put(connInfo,dataList);
         }
         else{
             ArrayList<byte[]> dataList=new ArrayList<>(20);
             dataList.add(data);
-            outOfOrder.put(seqId,dataList);
+            connectionDataList.put(connInfo,dataList);
         }
        // this.selector.wakeup();
     }
@@ -211,7 +213,6 @@ public class Proxy implements Runnable {
         //Complete connecting. This would return true if the connection is successful
         //socketChannel.configureBlocking(false);
         try {
-            System.out.println("Connected to Server");
             socketChannel.finishConnect();
         } catch (IOException e) {
             e.printStackTrace();
@@ -226,8 +227,8 @@ public class Proxy implements Runnable {
     private void write(SelectionKey key) throws IOException{
         SocketChannel sockCh = (SocketChannel) key.channel();
         int connId=(int)key.attachment();
-        if(outOfOrder.containsKey(connId)) {
-            ArrayList<byte[]> dataList = outOfOrder.get(connId);
+        if(connectionDataList.containsKey(connId)) {
+            ArrayList<byte[]> dataList = connectionDataList.get(connId);
             while (!dataList.isEmpty()) {
                 ByteBuffer buf = ByteBuffer.wrap(dataList.get(0));
                 int x = sockCh.write(buf);
