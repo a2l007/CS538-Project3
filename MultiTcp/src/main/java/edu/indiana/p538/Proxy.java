@@ -32,8 +32,9 @@ public class Proxy implements Runnable {
 
     private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(50);
     private ConcurrentHashMap<Integer,SocketChannel> connectionChannelMap = new ConcurrentHashMap<>();
-    //this map is to map connection IDs with the list of data
+    //this map is to map sequence numbers with the list of data
     private ConcurrentHashMap<Integer,ArrayList<byte[]>> outOfOrder = new ConcurrentHashMap<>();
+    private int lastIdSent = -1; //this is to keep track of possible out of order packets with one app connection
 
     public Proxy(int port, ProxyWorker worker) throws IOException{
         this.port = port;
@@ -76,6 +77,10 @@ public class Proxy implements Runnable {
                             //I'm attaching the connectionID with this socket for now.
                             // We might to make this an arraylist of connectionIDs soon
                             connectChannel.register(this.selector,event.getOps(),event.getConnId());
+                            //more to do??
+                            break;
+                        default:
+                            break;
 
                     }
                 }
@@ -95,7 +100,6 @@ public class Proxy implements Runnable {
                         }else if(key.isReadable()){
                             //read the key
                             this.read(key);
-
                         }else if(key.isWritable()){
                             //write to the key
                             this.write(key);
@@ -165,9 +169,9 @@ public class Proxy implements Runnable {
         this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE));
         //Pull the data based on the connection ID
         if(outOfOrder.containsKey(seqId)){
-            ArrayList<byte[]> dataList=outOfOrder.get(seqId);
+            ArrayList<byte[]> dataList=outOfOrder.get(seqId); //ok why are we always adding to outoforder??? it doesn't make sense ... not everything is going to be out of order...
             dataList.add(data);
-            outOfOrder.put(seqId,dataList);
+            outOfOrder.put(seqId,dataList); //also are we overwriting stuff here? i think we might be...actually no, we're not, because we're still adding based on seqnum
         }
         else{
             ArrayList<byte[]> dataList=new ArrayList<>(20);
@@ -178,7 +182,6 @@ public class Proxy implements Runnable {
     }
 
     protected void establishConn(InetSocketAddress msgInfo, byte[] data, int connId){
-        //TODO: IMPLEMENT
         //add to event queue; create connection as possible
         try {
             SocketChannel serverChannel = SocketChannel.open();
