@@ -158,7 +158,7 @@ public class Proxy implements Runnable {
         }
     }
 
-    protected  void send(int connInfo, byte[] data,int seqId){
+    protected  void send(int connId, byte[] data,int seqId){
         //TODO: IMPLEMENT
         //add it to the buffer queue, send on as we can
         //NOPE WE DO NOT NEED THE SOCKET STOP THINKING WE DO JEEZ.
@@ -166,7 +166,7 @@ public class Proxy implements Runnable {
         //Null check needed
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
         //Need to read data into buffer here and raise ProxyDataEvent
-        this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE));
+        this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE));
         //Pull the data based on the connection ID
         if(outOfOrder.containsKey(seqId)){
             ArrayList<byte[]> dataList=outOfOrder.get(seqId); //ok why are we always adding to outoforder??? it doesn't make sense ... not everything is going to be out of order...
