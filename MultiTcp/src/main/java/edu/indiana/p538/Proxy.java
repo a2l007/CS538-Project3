@@ -82,7 +82,10 @@ public class Proxy implements Runnable {
                             break;
                         case ProxyEvents.ENDING:
                             connectChannel=this.connectionChannelMap.get(event.getConnId());
-                            connectChannel.register(this.selector, event.getOps(), event.getConnId());
+                            //connectChannel.register(this.selector, event.getOps(), event.getConnId());
+                            SelectionKey endKey = connectChannel.keyFor(this.selector);
+                            connectChannel.close();
+                            endKey.cancel();
                             //more??? how to tell it to close?? this currently does nothing.
                         default:
                             break;
@@ -135,7 +138,7 @@ public class Proxy implements Runnable {
         try{
             numRead = sockCh.read(this.readBuf);
         }catch (IOException e){
-            //entering here means the remote has forced the connection closed
+            //entering here means the local proxy has forced the connection closed
             key.cancel();
             sockCh.close();
             return;
@@ -177,9 +180,9 @@ public class Proxy implements Runnable {
         this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId));
         //Pull the data based on the connection ID
         if(connectionDataList.containsKey(connId)){
-            ArrayList<byte[]> dataList= connectionDataList.get(connId); //ok why are we always adding to outoforder??? it doesn't make sense ... not everything is going to be out of order...
+            ArrayList<byte[]> dataList= connectionDataList.get(connId);
             dataList.add(data);
-            connectionDataList.put(connId,dataList);//also are we overwriting stuff here? i think we might be...actually no, we're not, because we're still adding based on seqnum
+            connectionDataList.put(connId,dataList);
         }
         else{
             ArrayList<byte[]> dataList=new ArrayList<>(20);
