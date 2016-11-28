@@ -32,6 +32,10 @@ public class Proxy implements Runnable {
     //this map is to map connection IDs with the list of data
     //Renamed this map to avoid confusion
     private ConcurrentHashMap<Integer,ArrayList<byte[]>> connectionDataList = new ConcurrentHashMap<>();
+    private int lastIdSent = -1; //this is to keep track of possible out of order packets with one app connection; -1 means we haven't sent any data packets along the connection yet.
+                                    ///note that this will have to change (to an array or arraylist, probably) for more than one app connection.
+
+    private SocketChannel server = null;
 
     public Proxy(int port, ProxyWorker worker) throws IOException{
         this.port = port;
@@ -64,7 +68,7 @@ public class Proxy implements Runnable {
                     this.pendingEvents.remove(event);
                     switch (event.getType()){
                         case ProxyEvents.WRITING:
-                            SocketChannel connectChannel=this.connectionChannelMap.get(event.getConnId());
+                            SocketChannel connectChannel=this.connectionChannelMap.get(event.getConnId()); //how does this work for server>>client messages instead of client>>server? i don't think it does...
                             SelectionKey key = connectChannel.keyFor(this.selector);
                             key.interestOps(event.getOps());
                             break;
@@ -74,6 +78,16 @@ public class Proxy implements Runnable {
                             //I'm attaching the connectionID with this socket for now.
                             // We might to make this an arraylist of connectionIDs soon
                             connectChannel.register(this.selector,event.getOps(),event.getConnId());
+                            //more to do??
+                            break;
+                        case ProxyEvents.ENDING:
+                            connectChannel=this.connectionChannelMap.get(event.getConnId());
+                            //connectChannel.register(this.selector, event.getOps(), event.getConnId());
+                            SelectionKey endKey = connectChannel.keyFor(this.selector);
+                            connectChannel.close();
+                            endKey.cancel();
+                            //more??? how to tell it to close?? this currently does nothing.
+                        default:
                             break;
 
                     }
@@ -94,7 +108,6 @@ public class Proxy implements Runnable {
                         }else if(key.isReadable()){
                             //read the key
                             this.read(key);
-
                         }else if(key.isWritable()){
                             //write to the key
                             this.write(key);
@@ -125,7 +138,7 @@ public class Proxy implements Runnable {
         try{
             numRead = sockCh.read(this.readBuf);
         }catch (IOException e){
-            //entering here means the remote has forced the connection closed
+            //entering here means the local proxy has forced the connection closed
             key.cancel();
             sockCh.close();
             return;
@@ -156,7 +169,7 @@ public class Proxy implements Runnable {
         }
     }
 
-    protected  void send(int connInfo, byte[] data,int seqId){
+    protected  void send(int connId, byte[] data,int seqId){
         //TODO: IMPLEMENT
         //add it to the buffer queue, send on as we can
         //NOPE WE DO NOT NEED THE SOCKET STOP THINKING WE DO JEEZ.
@@ -164,23 +177,22 @@ public class Proxy implements Runnable {
         //Null check needed
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
         //Need to read data into buffer here and raise ProxyDataEvent
-        this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE));
+        this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId));
         //Pull the data based on the connection ID
-        if(connectionDataList.containsKey(connInfo)){
-            ArrayList<byte[]> dataList= connectionDataList.get(connInfo);
+        if(connectionDataList.containsKey(connId)){
+            ArrayList<byte[]> dataList= connectionDataList.get(connId);
             dataList.add(data);
-            connectionDataList.put(connInfo,dataList);
+            connectionDataList.put(connId,dataList);
         }
         else{
             ArrayList<byte[]> dataList=new ArrayList<>(20);
             dataList.add(data);
-            connectionDataList.put(connInfo,dataList);
+            connectionDataList.put(connId,dataList);
         }
        // this.selector.wakeup();
     }
 
     protected void establishConn(InetSocketAddress msgInfo, byte[] data, int connId){
-        //TODO: IMPLEMENT
         //add to event queue; create connection as possible
         try {
             SocketChannel serverChannel = SocketChannel.open();
@@ -188,8 +200,10 @@ public class Proxy implements Runnable {
             // Kick off connection establishment
             //I've temporarily added port as the key to this map. Should we think of making this the connectionID?
             connectionChannelMap.put(connId,serverChannel);
+
+            server = serverChannel;
             //OP_CONNECT is getting masked by the call from ProxyWorker. Safe to listen to OP_WRITE here
-            this.pendingEvents.add(new ProxyEvents( data, connId,ProxyEvents.CONNECTING,SelectionKey.OP_CONNECT));
+            this.pendingEvents.add(new ProxyEvents( data, connId,ProxyEvents.CONNECTING,SelectionKey.OP_CONNECT, -1));
             //serverChannel.connect(msgInfo);
             //No point in waking up here as there may not be enough data to write into the channel
             //this.selector.wakeup();
@@ -201,12 +215,17 @@ public class Proxy implements Runnable {
         }
     }
 
-    protected void sendFin(InetSocketAddress connInfo, int reason){
+    protected void sendFin(int connId, int reason){
         //TODO: IMPLEMENT
         //add to event queue; end connection as possible
         //how to close????? Yeah how to?
         //this.pendingEvents.add(new ProxyEvents(connInfo, new byte[0], SelectionKey.OP_CONNECT,ProxyEvents.ENDING));
-        this.selector.wakeup();
+
+        //i want a way to get the specific connection right off the bat to poll, but i cannot think of how...going with that connectionChannelMap for now
+        if(connectionChannelMap.containsKey(connId)){
+            this.pendingEvents.add(new ProxyEvents(new byte[0], connId, ProxyEvents.WRITING, SelectionKey.OP_CONNECT, -1));
+        }
+        //this.selector.wakeup();
     }
     private void completeConnection(SelectionKey key) throws IOException {
         SocketChannel socketChannel = (SocketChannel) key.channel();
