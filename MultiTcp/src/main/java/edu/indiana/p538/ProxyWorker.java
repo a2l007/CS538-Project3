@@ -57,7 +57,7 @@ public class ProxyWorker implements Runnable{
                 int connId = PacketAnalyzer.getConnId(header);
                 if(reason == AppConstants.FIN_FLAG || reason == AppConstants.RST_FLAG){
                     //end connection
-                    (event.getProxy()).sendFin(msgInfo, reason);
+                    (event.getProxy()).sendFin(connId, reason);
                 }
             }else{
                 //else process and send data
