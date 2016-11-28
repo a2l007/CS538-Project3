@@ -36,38 +36,52 @@ public class ProxyWorker implements Runnable{
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
             byte[] message = event.getData();
-            byte[] header = Arrays.copyOfRange(message, 0, AppConstants.MHEADER);
-            //System.out.println("Message is"+Utils.bytesToHex(header));
+            //Tracker will keep track of navigating through the data array
+            int tracker=0;
+
+            //This loop is to ensure that the entire data array is read
+            while(tracker < message.length){
+                byte[] header = Arrays.copyOfRange(message, tracker, tracker+AppConstants.MHEADER);
+                if(PacketAnalyzer.isMSyn(header)){
+                    InetSocketAddress msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
+                    int connId=PacketAnalyzer.getConnId(header);
+                    //send back to the proxy
+                    (event.getProxy()).establishConn(msgInfo, message,connId);
+                    tracker+=AppConstants.MSYN_LEN;
+
+                }
+                else if(PacketAnalyzer.isMFin(header)){
+                    //Code commented for now
+                    //else test for MFIN
+               //     InetSocketAddress msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
+
+               //     byte payload = message[AppConstants.MHEADER];
+               //     int reason = PacketAnalyzer.getMFin(payload);
+               //     int connId = PacketAnalyzer.getConnId(header);
+                   /* if(reason == AppConstants.FIN_FLAG || reason == AppConstants.RST_FLAG){
+                        //end connection
+                        (event.getProxy()).sendFin(msgInfo, reason);
+                    }
+                    */
+                    tracker+=AppConstants.MFIN_LEN;
+
+                }else{
+                    //else process and send data
+                    //messageLength is inclusive of the data header. Need to keep that in mind.
+                    int messageLength=PacketAnalyzer.getLen(header);
+                    byte[] payload = PacketAnalyzer.getPayload(message,tracker,messageLength);
+                    int seqNumber=PacketAnalyzer.getSeqNum(header);
+                    int connId=PacketAnalyzer.getConnId(header);
+                    tracker+=messageLength+AppConstants.MHEADER;
+
+                    //return to the sender
+                    (event.getProxy()).send(connId, payload,seqNumber);
+                }
+            }
 
             //test for MSYN
-            if(PacketAnalyzer.isMSyn(header)){
-                InetSocketAddress msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
-                int connId=PacketAnalyzer.getConnId(header);
 
-                //send back to the proxy
-                (event.getProxy()).establishConn(msgInfo, message,connId);
-            }else if(PacketAnalyzer.isMFin(header)){
-                //else test for MFIN
-                InetSocketAddress msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
-
-                byte payload = message[AppConstants.MHEADER];
-                int reason = PacketAnalyzer.getMFin(payload);
-                int connId = PacketAnalyzer.getConnId(header);
-                if(reason == AppConstants.FIN_FLAG || reason == AppConstants.RST_FLAG){
-                    //end connection
-                    (event.getProxy()).sendFin(connId, reason);
-                }
-            }else{
-                //else process and send data
-                byte[] payload = PacketAnalyzer.getPayload(message);
-                int seqNumber=PacketAnalyzer.getSeqNum(header);
-                int connId=PacketAnalyzer.getConnId(header);
-
-                //return to the sender
-                (event.getProxy()).send(connId, payload,seqNumber);
-            }
 
 
         }

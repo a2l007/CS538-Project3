@@ -58,13 +58,20 @@ public class PacketAnalyzer {
 
     public static boolean isMFin(byte[] header){
         byte[] head3 = Arrays.copyOfRange(header, 6, 8);
-        ByteBuffer buf = ByteBuffer.wrap(head3);
+        /*ByteBuffer buf = ByteBuffer.wrap(head3);
         buf.order(ByteOrder.LITTLE_ENDIAN);
         int val = (int) buf.getShort();
 
         if(val == AppConstants.MFIN){
             return true;
         }else{
+            return false;
+        }*/
+        //Fin is identifed by FEFF and not FFFE. Need to follow up with prof on this
+        if(Utils.bytesToHex(head3).equals("FEFF")){
+            return true;
+        }
+        else{
             return false;
         }
     }
@@ -83,7 +90,7 @@ public class PacketAnalyzer {
         ByteBuffer buf = ByteBuffer.wrap(head3);
         buf.order(ByteOrder.LITTLE_ENDIAN);
         int len = (int) buf.getShort();
-
+        len-=AppConstants.MHEADER;
         return len;
     }
 
@@ -100,8 +107,9 @@ public class PacketAnalyzer {
         return (int) payload;
     }
 
-    public static byte[] getPayload(byte[] message){
-        byte[] payload = Arrays.copyOfRange(message, AppConstants.MHEADER, message.length);
+    public static byte[] getPayload(byte[] message, int offset, int messageLength){
+        //Change to ensure that in each iteration, the payload is retrieved based on the present position of tracker
+        byte[] payload = Arrays.copyOfRange(message, offset+AppConstants.MHEADER, offset+AppConstants.MHEADER+messageLength);
         return payload;
     }
 
