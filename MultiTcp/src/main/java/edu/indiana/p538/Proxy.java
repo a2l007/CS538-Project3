@@ -169,15 +169,16 @@ public class Proxy implements Runnable {
         }
     }
 
+    //need to figure out how to adapt to direction
     protected  void send(int connId, byte[] data,int seqId){
-        //TODO: IMPLEMENT
+        //TODO: IMPLEMENT FOR BIDIRECTIONAL TRAFFIC
         //add it to the buffer queue, send on as we can
         //NOPE WE DO NOT NEED THE SOCKET STOP THINKING WE DO JEEZ.
         //SocketChannel connChannel=this.connectionChannelMap.get(connInfo);
         //Null check needed
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
         //Need to read data into buffer here and raise ProxyDataEvent
-        this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId));
+        this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId)); //how to edit for bidirectional traffic? need some sort of ID for direction
         //Pull the data based on the connection ID
         if(connectionDataList.containsKey(connId)){
             ArrayList<byte[]> dataList= connectionDataList.get(connId);
