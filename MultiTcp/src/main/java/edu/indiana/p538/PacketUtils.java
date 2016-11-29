@@ -11,7 +11,7 @@ import java.util.Arrays;
 /*
  * @Atul
  */
-public class PacketAnalyzer {
+public class PacketUtils {
 
 	/*
 	 * Returns a connection object with information retrieved from the SYN
