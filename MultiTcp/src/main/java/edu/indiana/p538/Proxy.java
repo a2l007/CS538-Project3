@@ -86,7 +86,7 @@ public class Proxy implements Runnable {
                             SelectionKey endKey = connectChannel.keyFor(this.selector);
                             connectChannel.close();
                             endKey.cancel();
-                            //more??? how to tell it to close?? this currently does nothing.
+                            //more???
                         default:
                             break;
 
@@ -152,10 +152,13 @@ public class Proxy implements Runnable {
             return;
         }
 
+        String dir = "";
+
         // Since we're not attaching anything to the LP socket channel, attachment would be empty
         //hand to worker thread only if the read is called from the LP socket
         if(key.attachment()==null) {
-            this.worker.processData(this, sockCh, this.readBuf.array(), numRead);
+            dir = ProxyWorker.TO_SERVER;
+            this.worker.processData(dir, this, sockCh, this.readBuf.array(), numRead);
             key.interestOps(SelectionKey.OP_READ);
 
         }
@@ -170,8 +173,8 @@ public class Proxy implements Runnable {
     }
 
     //need to figure out how to adapt to direction
-    protected  void send(int connId, byte[] data,int seqId){
-        //TODO: IMPLEMENT FOR BIDIRECTIONAL TRAFFIC
+    protected  void send(int connId, byte[] data,int seqId, String dir){
+        //TODO: IMPLEMENT FOR BIDIRECTIONAL TRAFFIC -- specifically, how does dir come into play here?
         //add it to the buffer queue, send on as we can
         //NOPE WE DO NOT NEED THE SOCKET STOP THINKING WE DO JEEZ.
         //SocketChannel connChannel=this.connectionChannelMap.get(connInfo);

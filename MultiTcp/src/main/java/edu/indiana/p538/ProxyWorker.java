@@ -19,10 +19,13 @@ public class ProxyWorker implements Runnable{
     //blocking queue for events; init. to 50, can change.
     private BlockingQueue<ProxyDataEvent> queue = new ArrayBlockingQueue<ProxyDataEvent>(50);
 
-    public void processData(Proxy proxy, SocketChannel socket, byte[] data, int count){
+    protected static String TO_SERVER = "S";
+    protected static String TO_LP = "LP";
+
+    public void processData(String dir, Proxy proxy, SocketChannel socket, byte[] data, int count){
         byte[] dataCopy = new byte[count];
         System.arraycopy(data, 0, dataCopy, 0, count);
-        queue.add(new ProxyDataEvent(proxy,socket, dataCopy));
+        queue.add(new ProxyDataEvent(dir, proxy,socket, dataCopy));
         // add will do the notify
        // queue.notify();
     }
@@ -69,6 +72,7 @@ public class ProxyWorker implements Runnable{
                 }else{
                     //else process and send data
                     //messageLength is inclusive of the data header. Need to keep that in mind.
+                    String dir = event.getDirection();
                     int messageLength= PacketUtils.getLen(header);
                     byte[] payload = PacketUtils.getPayload(message,tracker,messageLength);
                     int seqNumber= PacketUtils.getSeqNum(header);
@@ -76,7 +80,7 @@ public class ProxyWorker implements Runnable{
                     tracker+=messageLength+AppConstants.MHEADER;
 
                     //return to the sender
-                    (event.getProxy()).send(connId, payload,seqNumber);
+                    (event.getProxy()).send(connId, payload,seqNumber, dir);
                 }
             }
 
