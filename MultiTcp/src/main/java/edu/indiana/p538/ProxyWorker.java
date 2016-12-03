@@ -19,10 +19,13 @@ public class ProxyWorker implements Runnable{
     //blocking queue for events; init. to 50, can change.
     private BlockingQueue<ProxyDataEvent> queue = new ArrayBlockingQueue<ProxyDataEvent>(50);
 
-    public void processData(Proxy proxy, SocketChannel socket, byte[] data, int count){
+    protected static String TO_SERVER = "S";
+    protected static String TO_LP = "LP";
+
+    public void processData(String dir, Proxy proxy, SocketChannel socket, byte[] data, int count){
         byte[] dataCopy = new byte[count];
         System.arraycopy(data, 0, dataCopy, 0, count);
-        queue.add(new ProxyDataEvent(proxy,socket, dataCopy));
+        queue.add(new ProxyDataEvent(dir, proxy,socket, dataCopy));
         // add will do the notify
        // queue.notify();
     }
@@ -43,22 +46,22 @@ public class ProxyWorker implements Runnable{
             //This loop is to ensure that the entire data array is read
             while(tracker < message.length){
                 byte[] header = Arrays.copyOfRange(message, tracker, tracker+AppConstants.MHEADER);
-                if(PacketAnalyzer.isMSyn(header)){
-                    InetSocketAddress msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
-                    int connId=PacketAnalyzer.getConnId(header);
+                if(PacketUtils.isMSyn(header)){
+                    InetSocketAddress msgInfo = PacketUtils.fetchConnectionInfo(message);
+                    int connId= PacketUtils.getConnId(header);
                     //send back to the proxy
                     (event.getProxy()).establishConn(msgInfo, message,connId);
                     tracker+=AppConstants.MSYN_LEN;
 
                 }
-                else if(PacketAnalyzer.isMFin(header)){
+                else if(PacketUtils.isMFin(header)){
                     //Code commented for now
                     //else test for MFIN
-               //     InetSocketAddress msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
+               //     InetSocketAddress msgInfo = PacketUtils.fetchConnectionInfo(message);
 
                //     byte payload = message[AppConstants.MHEADER];
-               //     int reason = PacketAnalyzer.getMFin(payload);
-               //     int connId = PacketAnalyzer.getConnId(header);
+               //     int reason = PacketUtils.getMFin(payload);
+               //     int connId = PacketUtils.getConnId(header);
                    /* if(reason == AppConstants.FIN_FLAG || reason == AppConstants.RST_FLAG){
                         //end connection
                         (event.getProxy()).sendFin(msgInfo, reason);
@@ -69,14 +72,15 @@ public class ProxyWorker implements Runnable{
                 }else{
                     //else process and send data
                     //messageLength is inclusive of the data header. Need to keep that in mind.
-                    int messageLength=PacketAnalyzer.getLen(header);
-                    byte[] payload = PacketAnalyzer.getPayload(message,tracker,messageLength);
-                    int seqNumber=PacketAnalyzer.getSeqNum(header);
-                    int connId=PacketAnalyzer.getConnId(header);
+                    String dir = event.getDirection();
+                    int messageLength= PacketUtils.getLen(header);
+                    byte[] payload = PacketUtils.getPayload(message,tracker,messageLength);
+                    int seqNumber= PacketUtils.getSeqNum(header);
+                    int connId= PacketUtils.getConnId(header);
                     tracker+=messageLength+AppConstants.MHEADER;
 
                     //return to the sender
-                    (event.getProxy()).send(connId, payload,seqNumber);
+                    (event.getProxy()).send(connId, payload,seqNumber, dir);
                 }
             }
 

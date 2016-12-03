@@ -9,11 +9,13 @@ public class ProxyDataEvent {
     private SocketChannel socket;
     private byte[] data;
     private Proxy proxy;
+    private String direction;
 
-    public ProxyDataEvent(Proxy proxy, SocketChannel sock, byte[] data){
+    public ProxyDataEvent(String dir, Proxy proxy, SocketChannel sock, byte[] data){
         this.proxy = proxy;
         this.socket = sock;
         this.data = data;
+        this.direction = dir;
     }
 
     /* GETTERS */
@@ -28,5 +30,9 @@ public class ProxyDataEvent {
 
     public Proxy getProxy() {
         return proxy;
+    }
+
+    public String getDirection() {
+        return direction;
     }
 }
