@@ -9,6 +9,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,14 +25,22 @@ public class Proxy implements Runnable {
     private Selector selector;
     private ProxyWorker worker;
 
+    //Temporary fix for single pipe scenario. Keeps track of the expected sequence number. Will change this for multiple pipes
+    private int expectedSequenceNumber=0;
+
     private ByteBuffer readBuf = ByteBuffer.allocate(8208); //buffer equal to 2 pipe messages; can adjust as necessary
 
+    // Instance of the LP socket channel. Might need an array of these objects for multiple pipes
+    private SocketChannel clientChannel;
 
     private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(50);
     private ConcurrentHashMap<Integer,SocketChannel> connectionChannelMap = new ConcurrentHashMap<>();
     //this map is to map connection IDs with the list of data
     //Renamed this map to avoid confusion
     private ConcurrentHashMap<Integer,ArrayList<byte[]>> connectionDataList = new ConcurrentHashMap<>();
+    //Stores the response data messages in this list
+    private ConcurrentHashMap<Integer,ArrayList<byte[]>> responseDataList = new ConcurrentHashMap<>();
+
     private int lastIdSent = -1; //this is to keep track of possible out of order packets with one app connection; -1 means we haven't sent any data packets along the connection yet.
                                     ///note that this will have to change (to an array or arraylist, probably) for more than one app connection.
 
@@ -83,9 +92,14 @@ public class Proxy implements Runnable {
                         case ProxyEvents.ENDING:
                             connectChannel=this.connectionChannelMap.get(event.getConnId());
                             //connectChannel.register(this.selector, event.getOps(), event.getConnId());
+                            // Removing the entry from the responseDataList once the write is complete and the connection is ended
+                            this.responseDataList.remove(event.getConnId());
                             SelectionKey endKey = connectChannel.keyFor(this.selector);
+                            //Resetting the sequence number for the next connection. Need to come up with better way.
+                            expectedSequenceNumber=0;
                             connectChannel.close();
-                            endKey.cancel();
+                            //This is giving me an NPE. Commented out for now?
+                            //endKey.cancel();
                             //more???
                         default:
                             break;
@@ -126,6 +140,9 @@ public class Proxy implements Runnable {
 
         SocketChannel sockCh = servCh.accept();
         sockCh.configureBlocking(false);
+        //Saving the LP channel object which needs to be ready to WRITE, while reading data from the server
+        clientChannel=sockCh;
+
         //tells the selector we want to know when data is available to be read
         sockCh.register(this.selector, SelectionKey.OP_READ);
     }
@@ -164,8 +181,27 @@ public class Proxy implements Runnable {
         }
         else{
             //System.out.println("<Data Print>");
-            System.out.write(this.readBuf.array());
-            //Just a dummy print statement for now to view the data
+            SelectionKey lpSocketKey = this.clientChannel.keyFor(this.selector);
+            lpSocketKey.interestOps(SelectionKey.OP_WRITE);
+            int connectionId=(int)key.attachment();
+            //If there is already an entry for this connectionID, append the datamessage to the existing arraylist
+            if(this.responseDataList.containsKey(connectionId)){
+                ArrayList<byte[]> dataMessages=this.responseDataList.get(connectionId);
+                //Generate the data message from the data,connection and sequence number
+                byte[] dataMsg=PacketUtils.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
+
+                //Seriously need a better way to keep track of sequence number
+                expectedSequenceNumber+=1;
+                dataMessages.add(dataMsg);
+                this.responseDataList.put(connectionId,dataMessages);
+            }
+            else{
+                ArrayList<byte[]> dataMessages=new ArrayList<>();
+                byte[] dataMsg=PacketUtils.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
+                expectedSequenceNumber+=1;
+                dataMessages.add(dataMsg);
+                this.responseDataList.put(connectionId,dataMessages);
+            }
             //System.out.write(this.readBuf.array());
             key.interestOps(SelectionKey.OP_WRITE);
 
@@ -249,19 +285,41 @@ public class Proxy implements Runnable {
 
     private void write(SelectionKey key) throws IOException{
         SocketChannel sockCh = (SocketChannel) key.channel();
-        int connId=(int)key.attachment();
-        if(connectionDataList.containsKey(connId)) {
-            ArrayList<byte[]> dataList = connectionDataList.get(connId);
-            while (!dataList.isEmpty()) {
-                ByteBuffer buf = ByteBuffer.wrap(dataList.get(0));
-                int x = sockCh.write(buf);
-                if (buf.remaining() > 0) {
-                    break;
+        //Server channel write
+        if(key.attachment()!=null) {
+            int connId = (int) key.attachment();
+            if (connectionDataList.containsKey(connId)) {
+                ArrayList<byte[]> dataList = connectionDataList.get(connId);
+                while (!dataList.isEmpty()) {
+                    ByteBuffer buf = ByteBuffer.wrap(dataList.get(0));
+                    int x = sockCh.write(buf);
+                    if (buf.remaining() > 0) {
+                        break;
+                    }
+                    dataList.remove(0);
                 }
-                dataList.remove(0);
+                if (dataList.isEmpty()) {
+                    key.interestOps(SelectionKey.OP_READ);
+                }
             }
-            if (dataList.isEmpty()) {
-                key.interestOps(SelectionKey.OP_READ);
+        }
+        // LP channel write starts here
+        else{
+            //I dont have the connection ID at this point. So I'm iterating through the responsedatalist and writing all the data
+            for(Map.Entry<Integer,ArrayList<byte[]>> connections:responseDataList.entrySet()) {
+                ArrayList<byte[]> dataList = responseDataList.get(connections.getKey());
+
+                while (!dataList.isEmpty()) {
+                    ByteBuffer buf = ByteBuffer.wrap(dataList.get(0));
+                    int x = sockCh.write(buf);
+                    if (buf.remaining() > 0) {
+                        break;
+                    }
+                    dataList.remove(0);
+                }
+                if (dataList.isEmpty()) {
+                    key.interestOps(SelectionKey.OP_READ);
+                }
             }
         }
     }

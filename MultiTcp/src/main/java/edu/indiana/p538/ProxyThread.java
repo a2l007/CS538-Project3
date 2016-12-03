@@ -106,8 +106,8 @@ public class ProxyThread implements Runnable{
                         }else if(PacketUtils.isMFin(header)){
                             //end connection with reason given
                             byte payload = clientInput[8];
-                            int reason = PacketUtils.getMFin(payload);
-                            if(reason == AppConstants.FIN_FLAG){
+                            String reason = PacketUtils.getMFin(payload);
+                            if(reason.equals(AppConstants.FIN_FLAG)|| reason.equals(AppConstants.RST_FLAG)){
                                 int connId = PacketUtils.getConnId(header);
                                 //end connection
                                 //TODO: IF FIN
