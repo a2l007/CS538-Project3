@@ -59,14 +59,15 @@ public class ProxyWorker implements Runnable{
                     //else test for MFIN
                //     InetSocketAddress msgInfo = PacketUtils.fetchConnectionInfo(message);
 
-               //     byte payload = message[AppConstants.MHEADER];
-               //     int reason = PacketUtils.getMFin(payload);
-               //     int connId = PacketUtils.getConnId(header);
-                   /* if(reason == AppConstants.FIN_FLAG || reason == AppConstants.RST_FLAG){
+                    byte payload = message[AppConstants.MHEADER];
+                    //Integer value was giving me -120. Switched to a String comparison for now. Needs to be refactored
+                    String reason = PacketUtils.getMFin(payload);
+                    int connId = PacketUtils.getConnId(header);
+                    if(reason.equals(AppConstants.FIN_FLAG) || reason.equals(AppConstants.RST_FLAG)){
                         //end connection
-                        (event.getProxy()).sendFin(msgInfo, reason);
+                        (event.getProxy()).sendFin(connId, Integer.parseInt(reason));
                     }
-                    */
+
                     tracker+=AppConstants.MFIN_LEN;
 
                 }else{

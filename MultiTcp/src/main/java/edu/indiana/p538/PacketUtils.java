@@ -103,14 +103,48 @@ public class PacketUtils {
         return seq;
     }
 
-    public static int getMFin(byte payload){
-        return (int) payload;
+    public static String getMFin(byte payload){
+        String reason=String.format("%02X", payload);
+        return reason;
     }
 
     public static byte[] getPayload(byte[] message, int offset, int messageLength){
         //Change to ensure that in each iteration, the payload is retrieved based on the present position of tracker
         byte[] payload = Arrays.copyOfRange(message, offset+AppConstants.MHEADER, offset+AppConstants.MHEADER+messageLength);
         return payload;
+    }
+
+    //This is the first version of the method that generates the pipe data message to be pushed back to LP.
+    // Needs refactoring
+    public static byte[] generateDataMessage(ByteBuffer responseData, int connectionID, int sequenceNumber,int numRead){
+        ByteBuffer connBuffer=ByteBuffer.allocate(2);
+        ByteBuffer seqBuffer=ByteBuffer.allocate(4);
+        ByteBuffer lenBuffer=ByteBuffer.allocate(2);
+        try {
+            connBuffer.order(ByteOrder.LITTLE_ENDIAN);
+            connBuffer.putShort((short) connectionID);
+            byte connBytes[] = connBuffer.array();
+
+            byte seqBytes[] = seqBuffer.putInt(sequenceNumber).array();
+            lenBuffer.order(ByteOrder.LITTLE_ENDIAN);
+            //As per the research paper, the total size of the data message is the sum of number of bytes read and the header size
+            numRead+=AppConstants.MHEADER;
+            byte lenBytes[]=lenBuffer.putShort((short)numRead).array();
+            byte dataMessage[] = new byte[numRead];
+
+            //Copy the connection bytes, sequence bytes, length bytes and data bytes into the response buffer
+            System.arraycopy(connBytes, 0, dataMessage, 0, connBytes.length);
+            System.arraycopy(seqBytes, 0, dataMessage, connBytes.length, seqBytes.length);
+            System.arraycopy(lenBytes, 0, dataMessage, connBytes.length+seqBytes.length, lenBytes.length);
+
+            System.arraycopy(responseData.array(), 0, dataMessage, connBytes.length + seqBytes.length+lenBytes.length, numRead-8);
+            //System.out.println(Utils.bytesToHex(connBytes));
+            return dataMessage;
+        }
+        catch (Exception e){
+            e.printStackTrace();
+            return null;
+        }
     }
 
 }
