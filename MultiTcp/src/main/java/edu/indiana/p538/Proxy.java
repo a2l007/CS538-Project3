@@ -25,9 +25,6 @@ public class Proxy implements Runnable {
     private Selector selector;
     private ProxyWorker worker;
 
-    //Temporary fix for single pipe scenario. Keeps track of the expected sequence number. Will change this for multiple pipes
-    private int expectedSequenceNumber=0;
-
     private ByteBuffer readBuf = ByteBuffer.allocate(8208); //buffer equal to 2 pipe messages; can adjust as necessary
 
     // Instance of the LP socket channel. Might need an array of these objects for multiple pipes
@@ -172,37 +169,43 @@ public class Proxy implements Runnable {
         String dir = "";
 
         // Since we're not attaching anything to the LP socket channel, attachment would be empty
-        //hand to worker thread only if the read is called from the LP socket
+        //hand to worker thread only if the read is called from the LP socket, because packets from the server are normal TCP packets
         if(key.attachment()==null) {
             dir = ProxyWorker.TO_SERVER;
-            this.worker.processData(dir, this, sockCh, this.readBuf.array(), numRead);
+            this.worker.processData(dir, this, -1, this.readBuf.array(), numRead);
             key.interestOps(SelectionKey.OP_READ);
 
         }
         else{
-            //System.out.println("<Data Print>");
+            dir = ProxyWorker.TO_LP;
             SelectionKey lpSocketKey = this.clientChannel.keyFor(this.selector);
             lpSocketKey.interestOps(SelectionKey.OP_WRITE);
             int connectionId=(int)key.attachment();
-            //If there is already an entry for this connectionID, append the datamessage to the existing arraylist
-            if(this.responseDataList.containsKey(connectionId)){
-                ArrayList<byte[]> dataMessages=this.responseDataList.get(connectionId);
-                //Generate the data message from the data,connection and sequence number
-                byte[] dataMsg=PacketUtils.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
 
-                //Seriously need a better way to keep track of sequence number
-                expectedSequenceNumber+=1;
-                dataMessages.add(dataMsg);
-                this.responseDataList.put(connectionId,dataMessages);
-            }
-            else{
-                ArrayList<byte[]> dataMessages=new ArrayList<>();
-                byte[] dataMsg=PacketUtils.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
-                expectedSequenceNumber+=1;
-                dataMessages.add(dataMsg);
-                this.responseDataList.put(connectionId,dataMessages);
-            }
-            //System.out.write(this.readBuf.array());
+            this.worker.processData(dir, this, connectionId, this.readBuf.array(), numRead);
+
+//            //System.out.println("<Data Print>");
+
+//            //If there is already an entry for this connectionID, append the datamessage to the existing arraylist
+//            if(this.responseDataList.containsKey(connectionId)){
+//                ArrayList<byte[]> dataMessages=this.responseDataList.get(connectionId);
+//                //Generate the data message from the data,connection and sequence number
+//                byte[] dataMsg=PacketUtils.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
+//
+//                //Seriously need a better way to keep track of sequence number
+//                //this is good for single app connections like we have? i think?
+//                expectedSequenceNumber+=1;
+//                dataMessages.add(dataMsg);
+//                this.responseDataList.put(connectionId,dataMessages);
+//            }
+//            else{
+//                ArrayList<byte[]> dataMessages=new ArrayList<>();
+//                byte[] dataMsg=PacketUtils.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
+//                expectedSequenceNumber+=1;
+//                dataMessages.add(dataMsg);
+//                this.responseDataList.put(connectionId,dataMessages);
+//            }
+//            //System.out.write(this.readBuf.array());
             key.interestOps(SelectionKey.OP_WRITE);
 
         }
@@ -217,7 +220,7 @@ public class Proxy implements Runnable {
         //Null check needed
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
         //Need to read data into buffer here and raise ProxyDataEvent
-        this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId)); //how to edit for bidirectional traffic? need some sort of ID for direction
+        this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId)); //we need dir here. how to add...??
         //Pull the data based on the connection ID
         if(connectionDataList.containsKey(connId)){
             ArrayList<byte[]> dataList= connectionDataList.get(connId);
@@ -286,7 +289,7 @@ public class Proxy implements Runnable {
     private void write(SelectionKey key) throws IOException{
         SocketChannel sockCh = (SocketChannel) key.channel();
         //Server channel write
-        if(key.attachment()!=null) {
+        if(key.attachment()!=null) { //if not null, there's an attachment and it's the connection we created to the actual server
             int connId = (int) key.attachment();
             if (connectionDataList.containsKey(connId)) {
                 ArrayList<byte[]> dataList = connectionDataList.get(connId);

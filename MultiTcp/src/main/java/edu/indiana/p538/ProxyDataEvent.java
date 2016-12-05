@@ -6,14 +6,14 @@ import java.nio.channels.SocketChannel;
  * Created by ladyl on 11/20/2016.
  */
 public class ProxyDataEvent {
-    private SocketChannel socket;
+    private int connId;
     private byte[] data;
     private Proxy proxy;
     private String direction;
 
-    public ProxyDataEvent(String dir, Proxy proxy, SocketChannel sock, byte[] data){
+    public ProxyDataEvent(String dir, Proxy proxy, int connId, byte[] data){
         this.proxy = proxy;
-        this.socket = sock;
+        this.connId = connId;
         this.data = data;
         this.direction = dir;
     }
@@ -24,8 +24,8 @@ public class ProxyDataEvent {
         return data;
     }
 
-    public SocketChannel getSocket() {
-        return socket;
+    public int getConnectionId() {
+        return connId;
     }
 
     public Proxy getProxy() {
