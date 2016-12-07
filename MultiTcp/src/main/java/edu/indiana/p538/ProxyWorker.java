@@ -47,7 +47,7 @@ public class ProxyWorker implements Runnable{
 
             //This loop is to ensure that the entire data array is read
             while(tracker < message.length){
-                if(event.getDirection() == TO_SERVER){
+                if(event.getDirection().equals(TO_SERVER)){
                     byte[] header = Arrays.copyOfRange(message, tracker, tracker+AppConstants.MHEADER);
                     if(PacketUtils.isMSyn(header)){
                         InetSocketAddress msgInfo = PacketUtils.fetchConnectionInfo(message);
@@ -85,7 +85,7 @@ public class ProxyWorker implements Runnable{
                         //return to the sender
                         (event.getProxy()).send(connId, payload,seqNumber, TO_SERVER);
                     }
-                }else if(event.getDirection() == TO_LP){
+                }else if(event.getDirection().equals(TO_LP)){
                     //System.out.println("<Data Print>");
                     int connectionId = event.getConnectionId();
                     expectedSequenceNumber++;

@@ -221,17 +221,23 @@ public class Proxy implements Runnable {
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
         //Need to read data into buffer here and raise ProxyDataEvent
         this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId)); //we need dir here. how to add...??
-        //Pull the data based on the connection ID
-        if(connectionDataList.containsKey(connId)){
-            ArrayList<byte[]> dataList= connectionDataList.get(connId);
-            dataList.add(data);
-            connectionDataList.put(connId,dataList);
+        if(dir.equals(ProxyWorker.TO_SERVER)){
+            //Pull the data based on the connection ID
+            if(connectionDataList.containsKey(connId)){
+                ArrayList<byte[]> dataList= connectionDataList.get(connId);
+                dataList.add(data);
+                connectionDataList.put(connId,dataList);
+            }
+            else{
+                ArrayList<byte[]> dataList=new ArrayList<>(20);
+                dataList.add(data);
+                connectionDataList.put(connId,dataList);
+            }
+        }else if(dir.equals(ProxyWorker.TO_LP)){
+            //TODO: IMPLEMENT THIS PART RIGHT HERE
+            //if(connectionDataList.containsKey(WHAT HERE????))
         }
-        else{
-            ArrayList<byte[]> dataList=new ArrayList<>(20);
-            dataList.add(data);
-            connectionDataList.put(connId,dataList);
-        }
+
        // this.selector.wakeup();
     }
 
