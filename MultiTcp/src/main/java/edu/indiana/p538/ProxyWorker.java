@@ -68,6 +68,8 @@ public class ProxyWorker implements Runnable{
                         int connId = PacketUtils.getConnId(header);
                         if(reason.equals(AppConstants.FIN_FLAG) || reason.equals(AppConstants.RST_FLAG)){
                             //end connection
+                            //Resetting the sequence number for the next connection. Need to come up with better way.
+                            expectedSequenceNumber=0;
                             (event.getProxy()).sendFin(connId, Integer.parseInt(reason));
                         }
 
