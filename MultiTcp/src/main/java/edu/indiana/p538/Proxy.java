@@ -30,7 +30,7 @@ public class Proxy implements Runnable {
     // Instance of the LP socket channel. Might need an array of these objects for multiple pipes
     private SocketChannel clientChannel;
 
-    private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(50);
+    private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(500);
     private ConcurrentHashMap<Integer,SocketChannel> connectionChannelMap = new ConcurrentHashMap<>();
     //this map is to map connection IDs with the list of data
     //Renamed this map to avoid confusion
@@ -92,7 +92,6 @@ public class Proxy implements Runnable {
                             // Removing the entry from the responseDataList once the write is complete and the connection is ended
                             this.responseDataList.remove(event.getConnId());
                             SelectionKey endKey = connectChannel.keyFor(this.selector);
-
                             connectChannel.close();
                             //This is giving me an NPE. Commented out for now?
                             //endKey.cancel();
@@ -159,7 +158,6 @@ public class Proxy implements Runnable {
 
         if(numRead == -1){
             //socket shut down cleanly. cancel channel
-            System.out.println("Closed socket");
             key.channel().close();
             key.cancel();
             return;
@@ -220,6 +218,7 @@ public class Proxy implements Runnable {
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
         //Need to read data into buffer here and raise ProxyDataEvent
         if(dir.equals(ProxyWorker.TO_SERVER)){
+            this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId));
             //Pull the data based on the connection ID
             if(connectionDataList.containsKey(connId)){
                 ArrayList<byte[]> dataList= connectionDataList.get(connId);
@@ -231,22 +230,20 @@ public class Proxy implements Runnable {
                 dataList.add(data);
                 connectionDataList.put(connId,dataList);
             }
-
-            this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId));
         }else if(dir.equals(ProxyWorker.TO_LP)){
             int nConn = connId*-1;
+            this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId)); //think i've taken care of dir?
             //TODO: IMPLEMENT THIS PART RIGHT HERE
-            if(connectionDataList.containsKey(nConn)){
-                ArrayList<byte[]> dataL = connectionDataList.get(nConn);
+            if(responseDataList.containsKey(connId)){
+                ArrayList<byte[]> dataL = responseDataList.get(connId);
                 dataL.add(data);
-                connectionDataList.put(nConn, dataL);
+                responseDataList.put(connId, dataL);
             }else{
                 ArrayList<byte[]> dataL = new ArrayList<>(20);
                 dataL.add(data);
-                connectionDataList.put(nConn, dataL);
+                responseDataList.put(connId, dataL);
             }
 
-            this.pendingEvents.add(new ProxyEvents(data, nConn, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId)); //think i've taken care of dir?
         }
 
 
@@ -284,7 +281,7 @@ public class Proxy implements Runnable {
 
         //i want a way to get the specific connection right off the bat to poll, but i cannot think of how...going with that connectionChannelMap for now
         if(connectionChannelMap.containsKey(connId)){
-            this.pendingEvents.add(new ProxyEvents(new byte[0], connId, ProxyEvents.WRITING, SelectionKey.OP_CONNECT, -1));
+            this.pendingEvents.add(new ProxyEvents(new byte[0], connId, ProxyEvents.ENDING, SelectionKey.OP_CONNECT, -1));
         }
         //this.selector.wakeup();
     }
@@ -329,8 +326,8 @@ public class Proxy implements Runnable {
             //I dont have the connection ID at this point. So I'm iterating through the responsedatalist and writing all the data
             for(Map.Entry<Integer,ArrayList<byte[]>> connections:responseDataList.entrySet()) {
                 ArrayList<byte[]> dataList = responseDataList.get(connections.getKey());
-
                 while (!dataList.isEmpty()) {
+                    //System.out.println(Utils.bytesToHex(dataList.get(0)));
                     ByteBuffer buf = ByteBuffer.wrap(dataList.get(0));
                     int x = sockCh.write(buf);
                     if (buf.remaining() > 0) {
