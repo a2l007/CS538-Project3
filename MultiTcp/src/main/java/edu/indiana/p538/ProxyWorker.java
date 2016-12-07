@@ -1,6 +1,7 @@
 package edu.indiana.p538;
 
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -92,8 +93,12 @@ public class ProxyWorker implements Runnable{
                     int connectionId = event.getConnectionId();
                     expectedSequenceNumber++;
                     int seqNum = expectedSequenceNumber;
-                    byte[] payload = event.getData();
-                    (event.getProxy()).send(connectionId, payload, seqNum, TO_LP);
+                    byte[] data = event.getData();
+                    ByteBuffer payload = ByteBuffer.wrap(data);
+                    int numRead = data.length;
+                    byte[] dataMsg=PacketUtils.generateDataMessage(payload,connectionId,expectedSequenceNumber,numRead);
+
+                    (event.getProxy()).send(connectionId, dataMsg, seqNum, TO_LP);
                 }
             }
 
