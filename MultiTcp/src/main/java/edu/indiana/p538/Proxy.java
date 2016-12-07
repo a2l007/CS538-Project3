@@ -30,7 +30,7 @@ public class Proxy implements Runnable {
     // Instance of the LP socket channel. Might need an array of these objects for multiple pipes
     private SocketChannel clientChannel;
 
-    private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(500);
+    private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(50);
     private ConcurrentHashMap<Integer,SocketChannel> connectionChannelMap = new ConcurrentHashMap<>();
     //this map is to map connection IDs with the list of data
     //Renamed this map to avoid confusion
