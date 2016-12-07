@@ -117,6 +117,7 @@ public class PacketUtils {
     //This is the first version of the method that generates the pipe data message to be pushed back to LP.
     // Needs refactoring
     public static byte[] generateDataMessage(ByteBuffer responseData, int connectionID, int sequenceNumber,int numRead){
+        System.out.println("Sequence number is "+sequenceNumber);
         ByteBuffer connBuffer=ByteBuffer.allocate(2);
         ByteBuffer seqBuffer=ByteBuffer.allocate(4);
         ByteBuffer lenBuffer=ByteBuffer.allocate(2);
