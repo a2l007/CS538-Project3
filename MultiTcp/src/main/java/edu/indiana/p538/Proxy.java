@@ -92,8 +92,7 @@ public class Proxy implements Runnable {
                             // Removing the entry from the responseDataList once the write is complete and the connection is ended
                             this.responseDataList.remove(event.getConnId());
                             SelectionKey endKey = connectChannel.keyFor(this.selector);
-                            //Resetting the sequence number for the next connection. Need to come up with better way.
-                            expectedSequenceNumber=0;
+
                             connectChannel.close();
                             //This is giving me an NPE. Commented out for now?
                             //endKey.cancel();
@@ -220,7 +219,6 @@ public class Proxy implements Runnable {
         //Null check needed
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
         //Need to read data into buffer here and raise ProxyDataEvent
-        this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId)); //we need dir here. how to add...??
         if(dir.equals(ProxyWorker.TO_SERVER)){
             //Pull the data based on the connection ID
             if(connectionDataList.containsKey(connId)){
@@ -233,10 +231,24 @@ public class Proxy implements Runnable {
                 dataList.add(data);
                 connectionDataList.put(connId,dataList);
             }
+
+            this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId));
         }else if(dir.equals(ProxyWorker.TO_LP)){
+            int nConn = connId*-1;
             //TODO: IMPLEMENT THIS PART RIGHT HERE
-            //if(connectionDataList.containsKey(WHAT HERE????))
+            if(connectionDataList.containsKey(nConn)){
+                ArrayList<byte[]> dataL = connectionDataList.get(nConn);
+                dataL.add(data);
+                connectionDataList.put(nConn, dataL);
+            }else{
+                ArrayList<byte[]> dataL = new ArrayList<>(20);
+                dataL.add(data);
+                connectionDataList.put(nConn, dataL);
+            }
+
+            this.pendingEvents.add(new ProxyEvents(data, nConn, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId)); //think i've taken care of dir?
         }
+
 
        // this.selector.wakeup();
     }
