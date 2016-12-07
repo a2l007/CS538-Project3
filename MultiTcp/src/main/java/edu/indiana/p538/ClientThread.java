@@ -19,7 +19,7 @@ public class ClientThread implements Runnable{
     public void setDataMessage(byte[] dataMessage) {
         this.dataMessage = dataMessage;
     }
-    
+
     private Socket socket = null;
     public ClientThread(ConnInfo c){
         this.conn=c;
