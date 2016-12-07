@@ -1,7 +1,7 @@
 package edu.indiana.p538;
 
 import java.net.InetSocketAddress;
-import java.nio.channels.SocketChannel;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -19,13 +19,16 @@ public class ProxyWorker implements Runnable{
     //blocking queue for events; init. to 50, can change.
     private BlockingQueue<ProxyDataEvent> queue = new ArrayBlockingQueue<ProxyDataEvent>(50);
 
+    //Temporary fix for single pipe scenario. Keeps track of the expected sequence number. Will change this for multiple pipes
+    private int expectedSequenceNumber=0;
+
     protected static String TO_SERVER = "S";
     protected static String TO_LP = "LP";
 
-    public void processData(String dir, Proxy proxy, SocketChannel socket, byte[] data, int count){
+    public void processData(String dir, Proxy proxy, int connId, byte[] data, int count){
         byte[] dataCopy = new byte[count];
         System.arraycopy(data, 0, dataCopy, 0, count);
-        queue.add(new ProxyDataEvent(dir, proxy,socket, dataCopy));
+        queue.add(new ProxyDataEvent(dir, proxy,connId, dataCopy));
         // add will do the notify
        // queue.notify();
     }
@@ -45,43 +48,57 @@ public class ProxyWorker implements Runnable{
 
             //This loop is to ensure that the entire data array is read
             while(tracker < message.length){
-                byte[] header = Arrays.copyOfRange(message, tracker, tracker+AppConstants.MHEADER);
-                if(PacketUtils.isMSyn(header)){
-                    InetSocketAddress msgInfo = PacketUtils.fetchConnectionInfo(message);
-                    int connId= PacketUtils.getConnId(header);
-                    //send back to the proxy
-                    (event.getProxy()).establishConn(msgInfo, message,connId);
-                    tracker+=AppConstants.MSYN_LEN;
+                if(event.getDirection().equals(TO_SERVER)){
+                    byte[] header = Arrays.copyOfRange(message, tracker, tracker+AppConstants.MHEADER);
+                    if(PacketUtils.isMSyn(header)){
+                        InetSocketAddress msgInfo = PacketUtils.fetchConnectionInfo(message);
+                        int connId= PacketUtils.getConnId(header);
+                        //send back to the proxy
+                        (event.getProxy()).establishConn(msgInfo, message,connId);
+                        tracker+=AppConstants.MSYN_LEN;
 
-                }
-                else if(PacketUtils.isMFin(header)){
-                    //Code commented for now
-                    //else test for MFIN
-               //     InetSocketAddress msgInfo = PacketUtils.fetchConnectionInfo(message);
-
-                    byte payload = message[AppConstants.MHEADER];
-                    //Integer value was giving me -120. Switched to a String comparison for now. Needs to be refactored
-                    String reason = PacketUtils.getMFin(payload);
-                    int connId = PacketUtils.getConnId(header);
-                    if(reason.equals(AppConstants.FIN_FLAG) || reason.equals(AppConstants.RST_FLAG)){
-                        //end connection
-                        (event.getProxy()).sendFin(connId, Integer.parseInt(reason));
                     }
+                    else if(PacketUtils.isMFin(header)){
+                        //Code commented for now
+                        //else test for MFIN
+                        //     InetSocketAddress msgInfo = PacketUtils.fetchConnectionInfo(message);
 
-                    tracker+=AppConstants.MFIN_LEN;
+                        byte payload = message[AppConstants.MHEADER];
+                        //Integer value was giving me -120. Switched to a String comparison for now. Needs to be refactored
+                        String reason = PacketUtils.getMFin(payload);
+                        int connId = PacketUtils.getConnId(header);
+                        if(reason.equals(AppConstants.FIN_FLAG) || reason.equals(AppConstants.RST_FLAG)){
+                            //end connection
+                            //Resetting the sequence number for the next connection. Need to come up with better way.
+                            expectedSequenceNumber=0;
+                            (event.getProxy()).sendFin(connId, Integer.parseInt(reason));
+                        }
 
-                }else{
-                    //else process and send data
-                    //messageLength is inclusive of the data header. Need to keep that in mind.
-                    String dir = event.getDirection();
-                    int messageLength= PacketUtils.getLen(header);
-                    byte[] payload = PacketUtils.getPayload(message,tracker,messageLength);
-                    int seqNumber= PacketUtils.getSeqNum(header);
-                    int connId= PacketUtils.getConnId(header);
-                    tracker+=messageLength+AppConstants.MHEADER;
+                        tracker+=AppConstants.MFIN_LEN;
 
-                    //return to the sender
-                    (event.getProxy()).send(connId, payload,seqNumber, dir);
+                    }else{
+                        //else process and send data
+                        //messageLength is inclusive of the data header. Need to keep that in mind.
+                        int messageLength= PacketUtils.getLen(header);
+                        byte[] payload = PacketUtils.getPayload(message,tracker,messageLength);
+                        int seqNumber= PacketUtils.getSeqNum(header);
+                        int connId= PacketUtils.getConnId(header);
+                        tracker+=messageLength+AppConstants.MHEADER;
+
+                        //return to the sender
+                        (event.getProxy()).send(connId, payload,seqNumber, TO_SERVER);
+                    }
+                }else if(event.getDirection().equals(TO_LP)){
+                    //System.out.println("<Data Print>");
+                    int connectionId = event.getConnectionId();
+                    expectedSequenceNumber++;
+                    int seqNum = expectedSequenceNumber;
+                    byte[] data = event.getData();
+                    ByteBuffer payload = ByteBuffer.wrap(data);
+                    int numRead = data.length;
+                    byte[] dataMsg=PacketUtils.generateDataMessage(payload,connectionId,expectedSequenceNumber,numRead);
+
+                    (event.getProxy()).send(connectionId, dataMsg, seqNum, TO_LP);
                 }
             }
 
