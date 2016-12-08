@@ -176,7 +176,7 @@ public class Proxy implements Runnable {
         else{
             dir = ProxyWorker.TO_LP;
             SelectionKey lpSocketKey = this.clientChannel.keyFor(this.selector);
-            lpSocketKey.interestOps(SelectionKey.OP_WRITE);
+            //lpSocketKey.interestOps(SelectionKey.OP_WRITE); //i'm not sure this is in the right place
             int connectionId=(int)key.attachment();
 
             this.worker.processData(dir, this, connectionId, this.readBuf.array(), numRead);
@@ -203,7 +203,7 @@ public class Proxy implements Runnable {
 //                this.responseDataList.put(connectionId,dataMessages);
 //            }
 //            //System.out.write(this.readBuf.array());
-            key.interestOps(SelectionKey.OP_WRITE);
+            //key.interestOps(SelectionKey.OP_READ);
 
         }
     }
@@ -231,7 +231,6 @@ public class Proxy implements Runnable {
                 connectionDataList.put(connId,dataList);
             }
         }else if(dir.equals(ProxyWorker.TO_LP)){
-            int nConn = connId*-1;
             this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId)); //think i've taken care of dir?
             //TODO: IMPLEMENT THIS PART RIGHT HERE
             if(responseDataList.containsKey(connId)){
@@ -298,7 +297,7 @@ public class Proxy implements Runnable {
         }
 
         //Since connection is established, show interest in writing data to the server
-        key.interestOps(SelectionKey.OP_WRITE);
+        key.interestOps(SelectionKey.OP_WRITE); //not sure this is correct either...but it makes sense because it doesn't have anything to give to the client yet...
     }
 
     private void write(SelectionKey key) throws IOException{
