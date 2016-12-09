@@ -75,6 +75,9 @@ public class Proxy implements Runnable {
                             if(connectChannel!=null) {
                                 SelectionKey key = connectChannel.keyFor(this.selector);
                                 key.interestOps(event.getOps());
+                                if(freePipes.contains(connectChannel)){
+                                    freePipes.remove(connectChannel);
+                                }
                             }
                             break;
                         case ProxyEvents.CONNECTING:
@@ -146,8 +149,9 @@ public class Proxy implements Runnable {
         this.readBuf.clear();
         //System.out.println("Inside rread");
         //TODO DEBUG
-        if(key.attachment()==null) {
+        if(key.attachment()==null && freePipes.contains(key.channel())) {
         //    System.out.println("This is the LP socket being read");
+            freePipes.remove(key.channel());
         }
         int numRead;
         try{
