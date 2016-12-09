@@ -38,7 +38,7 @@ public class Proxy implements Runnable {
     //Stores the response data messages in this list
     private ConcurrentHashMap<Integer,ArrayList<byte[]>> responseDataList = new ConcurrentHashMap<>();
 
-    private int lastIdSent = -1; //this is to keep track of possible out of order packets with one app connection; -1 means we haven't sent any data packets along the connection yet.
+    //private int lastIdSent = -1; //this is to keep track of possible out of order packets with one app connection; -1 means we haven't sent any data packets along the connection yet.
                                     ///note that this will have to change (to an array or arraylist, probably) for more than one app connection.
 
     private SocketChannel server = null;
@@ -65,9 +65,6 @@ public class Proxy implements Runnable {
                 //either we are going to be iterating over all the sockets as well as the
                 //events, or we are going to have to find the correct method to use to find
                 //a specific socket.
-
-                //it would be great if we could ID a socket by IP/port pair with the selector
-                //I don't have internet right now but that should be the next step to figuring this out.
                 Iterator<ProxyEvents> iter = this.pendingEvents.iterator();
                 while(iter.hasNext()){
                     ProxyEvents event = iter.next();
@@ -91,7 +88,7 @@ public class Proxy implements Runnable {
                             //connectChannel.register(this.selector, event.getOps(), event.getConnId());
                             // Removing the entry from the responseDataList once the write is complete and the connection is ended
                             this.responseDataList.remove(event.getConnId());
-                            SelectionKey endKey = connectChannel.keyFor(this.selector);
+                            //SelectionKey endKey = connectChannel.keyFor(this.selector);
                             connectChannel.close();
                             //This is giving me an NPE. Commented out for now?
                             //endKey.cancel();
@@ -170,13 +167,13 @@ public class Proxy implements Runnable {
         if(key.attachment()==null) {
             dir = ProxyWorker.TO_SERVER;
             this.worker.processData(dir, this, -1, this.readBuf.array(), numRead);
-            key.interestOps(SelectionKey.OP_READ);
+            //key.interestOps(SelectionKey.OP_READ);//not sure this is necessary/should be here?
 
         }
         else{
             dir = ProxyWorker.TO_LP;
             SelectionKey lpSocketKey = this.clientChannel.keyFor(this.selector);
-            lpSocketKey.interestOps(SelectionKey.OP_WRITE);
+            //lpSocketKey.interestOps(SelectionKey.OP_WRITE);
             int connectionId=(int)key.attachment();
 
             this.worker.processData(dir, this, connectionId, this.readBuf.array(), numRead);
@@ -203,7 +200,7 @@ public class Proxy implements Runnable {
 //                this.responseDataList.put(connectionId,dataMessages);
 //            }
 //            //System.out.write(this.readBuf.array());
-            key.interestOps(SelectionKey.OP_WRITE);
+            //key.interestOps(SelectionKey.OP_WRITE);
 
         }
     }
@@ -231,7 +228,6 @@ public class Proxy implements Runnable {
                 connectionDataList.put(connId,dataList);
             }
         }else if(dir.equals(ProxyWorker.TO_LP)){
-            int nConn = connId*-1;
             this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId)); //think i've taken care of dir?
             //TODO: IMPLEMENT THIS PART RIGHT HERE
             if(responseDataList.containsKey(connId)){
@@ -281,7 +277,7 @@ public class Proxy implements Runnable {
 
         //i want a way to get the specific connection right off the bat to poll, but i cannot think of how...going with that connectionChannelMap for now
         if(connectionChannelMap.containsKey(connId)){
-            this.pendingEvents.add(new ProxyEvents(new byte[0], connId, ProxyEvents.ENDING, SelectionKey.OP_CONNECT, -1));
+            this.pendingEvents.add(new ProxyEvents(new byte[0], connId, ProxyEvents.ENDING, SelectionKey.OP_WRITE, -1));
         }
         //this.selector.wakeup();
     }
@@ -298,11 +294,11 @@ public class Proxy implements Runnable {
         }
 
         //Since connection is established, show interest in writing data to the server
-        key.interestOps(SelectionKey.OP_WRITE);
+       // key.interestOps(SelectionKey.OP_WRITE); //is this in the right place??? dunno...
     }
 
     private void write(SelectionKey key) throws IOException{
-        SocketChannel sockCh = (SocketChannel) key.channel();
+        //SocketChannel sockCh = (SocketChannel) key.channel();
         //Server channel write
         if(key.attachment()!=null) { //if not null, there's an attachment and it's the connection we created to the actual server
             int connId = (int) key.attachment();
@@ -310,11 +306,12 @@ public class Proxy implements Runnable {
                 ArrayList<byte[]> dataList = connectionDataList.get(connId);
                 while (!dataList.isEmpty()) {
                     ByteBuffer buf = ByteBuffer.wrap(dataList.get(0));
-                    int x = sockCh.write(buf);
+                    //int x = sockCh.write(buf);
                     if (buf.remaining() > 0) {
                         break;
                     }
                     dataList.remove(0);
+                    System.out.println("writing to server");
                 }
                 if (dataList.isEmpty()) {
                     key.interestOps(SelectionKey.OP_READ);
@@ -329,11 +326,12 @@ public class Proxy implements Runnable {
                 while (!dataList.isEmpty()) {
                     //System.out.println(Utils.bytesToHex(dataList.get(0)));
                     ByteBuffer buf = ByteBuffer.wrap(dataList.get(0));
-                    int x = sockCh.write(buf);
+                    //int x = sockCh.write(buf);
                     if (buf.remaining() > 0) {
                         break;
                     }
                     dataList.remove(0);
+                    System.out.println("writing to LP");
                 }
                 if (dataList.isEmpty()) {
                     key.interestOps(SelectionKey.OP_READ);
