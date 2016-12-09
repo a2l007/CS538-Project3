@@ -30,7 +30,7 @@ public class Proxy implements Runnable {
     private ByteBuffer readBuf = ByteBuffer.allocate(8208); //buffer equal to 2 pipe messages; can adjust as necessary
     private int pipes;
     //TODO: Modify the following channel variable
-    private ArrayList<SocketChannel> clientChannel;
+    private ArrayList<SocketChannel> freePipes;
 
     private BlockingQueue<ProxyEvents> pendingEvents = new ArrayBlockingQueue<>(50);
     private ConcurrentHashMap<Integer,SocketChannel> connectionChannelMap = new ConcurrentHashMap<>();
@@ -49,7 +49,7 @@ public class Proxy implements Runnable {
         this.serverSocketChannel.configureBlocking(false);
         this.selector = Selector.open();
         this.pipes=numPipes;
-        this.clientChannel=new ArrayList<>(pipes);
+        this.freePipes =new ArrayList<>(pipes);
         //this says we're looking for new connections to the given port
         this.serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
     }
@@ -135,7 +135,7 @@ public class Proxy implements Runnable {
 
         SocketChannel sockCh = servCh.accept();
         sockCh.configureBlocking(false);
-        clientChannel.add(sockCh);
+        freePipes.add(sockCh);
         //tells the selector we want to know when data is available to be read
         sockCh.register(this.selector, SelectionKey.OP_READ);
     }
@@ -154,6 +154,9 @@ public class Proxy implements Runnable {
             numRead = sockCh.read(this.readBuf);
         }catch (IOException e) {
             //entering here means the remote has forced the connection closed
+            if(freePipes.contains(sockCh)){
+                freePipes.remove(sockCh);
+            }
             key.cancel();
             sockCh.close();
             return;
@@ -164,6 +167,9 @@ public class Proxy implements Runnable {
             System.out.println("Closed socket");
 
           //TODO DEBUG
+            if(freePipes.contains(sockCh)){
+                freePipes.remove(sockCh);
+            }
             key.channel().close();
             key.cancel();
           //  return;
@@ -187,34 +193,36 @@ public class Proxy implements Runnable {
             //key.interestOps(SelectionKey.OP_WRITE);
             //TODO XXY DEBUG
 
-//            SelectionKey lpSocketKey = this.clientChannel.keyFor(this.selector);
+//            SelectionKey lpSocketKey = this.freePipes.keyFor(this.selector);
 //            lpSocketKey.interestOps(SelectionKey.OP_WRITE);
             //TODO create the data message which needs to be pushed back to the LP socket
 
             int connectionId=(int)key.attachment();
             //System.out.println("Conn id is"+connectionId);
-            if(this.responseDataList.containsKey(connectionId)){
-                ArrayList<byte[]> dataMessages=this.responseDataList.get(connectionId);
-                //We could either keep track of the sequence number by checking the size of the dataMessages arraylist
-                //Or we would need a new hashmap that keeps track of the current sequence number for each connectionID
-                byte[] dataMsg=PacketAnalyzer.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
-                //System.out.println("Contains key");
-                expectedSequenceNumber+=1;
-                //System.out.println("Adding data to list of size"+dataMsg.length);
-                dataMessages.add(dataMsg);
-                this.responseDataList.put(connectionId,dataMessages);
-            }
-            else{
-                ArrayList<byte[]> dataMessages=new ArrayList<>();
-                byte[] dataMsg=PacketAnalyzer.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
-                expectedSequenceNumber+=1;
-                //System.out.println("Adding data to list of size now"+dataMsg.length);
-                dataMessages.add(dataMsg);
-                this.responseDataList.put(connectionId,dataMessages);
-            }
-            //TODO XXY Moved here from previous TODO XXY
+
+            if(!freePipes.isEmpty()){
+                if(this.responseDataList.containsKey(connectionId)){
+                    ArrayList<byte[]> dataMessages=this.responseDataList.get(connectionId);
+                    //We could either keep track of the sequence number by checking the size of the dataMessages arraylist
+                    //Or we would need a new hashmap that keeps track of the current sequence number for each connectionID
+                    byte[] dataMsg=PacketAnalyzer.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
+                    //System.out.println("Contains key");
+                    expectedSequenceNumber+=1;
+                    //System.out.println("Adding data to list of size"+dataMsg.length);
+                    dataMessages.add(dataMsg);
+                    this.responseDataList.put(connectionId,dataMessages);
+                }
+                else{
+                    ArrayList<byte[]> dataMessages=new ArrayList<>();
+                    byte[] dataMsg=PacketAnalyzer.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
+                    expectedSequenceNumber+=1;
+                    //System.out.println("Adding data to list of size now"+dataMsg.length);
+                    dataMessages.add(dataMsg);
+                    this.responseDataList.put(connectionId,dataMessages);
+                }
+                //TODO XXY Moved here from previous TODO XXY
           /*  SelectionKey lpSocketKey;
-            for(SocketChannel sc:this.clientChannel){
+            for(SocketChannel sc:this.freePipes){
                 lpSocketKey = sc.keyFor(this.selector);
                 if(lpSocketKey.isWritable()) {
                     lpSocketKey.interestOps(SelectionKey.OP_WRITE);
@@ -223,8 +231,10 @@ public class Proxy implements Runnable {
             this.worker.processData(dir, this, connectionId, this.readBuf.array(), numRead);
 
             }*/
-            SelectionKey lpSocketKey = this.clientChannel.get(0).keyFor(this.selector);
-            lpSocketKey.interestOps(SelectionKey.OP_WRITE);
+                SelectionKey lpSocketKey = this.freePipes.get(0).keyFor(this.selector);
+                freePipes.remove(0);
+                //TODO: FINISH LOGIC
+            }
         }
     }
 
