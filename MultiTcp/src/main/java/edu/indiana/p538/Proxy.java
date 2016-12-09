@@ -75,6 +75,9 @@ public class Proxy implements Runnable {
                             if(connectChannel!=null) {
                                 SelectionKey key = connectChannel.keyFor(this.selector);
                                 key.interestOps(event.getOps());
+                                if(freePipes.contains(connectChannel)){
+                                    freePipes.remove(connectChannel);
+                                }
                             }
                             break;
                         case ProxyEvents.CONNECTING:
@@ -146,17 +149,15 @@ public class Proxy implements Runnable {
         this.readBuf.clear();
         //System.out.println("Inside rread");
         //TODO DEBUG
-        if(key.attachment()==null) {
+        if(key.attachment()==null && freePipes.contains(key.channel())) {
         //    System.out.println("This is the LP socket being read");
+            freePipes.remove(key.channel());
         }
         int numRead;
         try{
             numRead = sockCh.read(this.readBuf);
         }catch (IOException e) {
             //entering here means the remote has forced the connection closed
-            if(freePipes.contains(sockCh)){
-                freePipes.remove(sockCh);
-            }
             key.cancel();
             sockCh.close();
             return;
@@ -167,9 +168,6 @@ public class Proxy implements Runnable {
             System.out.println("Closed socket");
 
           //TODO DEBUG
-            if(freePipes.contains(sockCh)){
-                freePipes.remove(sockCh);
-            }
             key.channel().close();
             key.cancel();
           //  return;
@@ -245,8 +243,7 @@ public class Proxy implements Runnable {
         //SocketChannel connChannel=this.connectionChannelMap.get(connInfo);
         //Null check needed
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
-        //Need to read data into buffer here and raise ProxyDataEvent
-        this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE,seqId));
+
         //Pull the data based on the connection ID
 
         //Here the data comes in first and so we're expecting the SYN packet first
@@ -260,6 +257,8 @@ public class Proxy implements Runnable {
             //If the expected seq is what comes in, we increment the expectedseq number
             if(expectedSeq==seqId){
                 expectedSequenceList.put(connInfo,seqId+1);
+                //Need to read data into buffer here and raise ProxyDataEvent
+                this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE,seqId));
             }
         }
         if(connectionDataList.containsKey(connInfo)){
@@ -355,7 +354,7 @@ public class Proxy implements Runnable {
 
         //System.out.println("connected. Setting key to write");
 
-        key.interestOps(SelectionKey.OP_WRITE);
+        key.interestOps(SelectionKey.OP_WRITE); //not sure all these op changes should be here
     }
 
     private void write(SelectionKey key) throws IOException{
@@ -398,7 +397,7 @@ public class Proxy implements Runnable {
             //    }
             }
             else{
-                key.interestOps(SelectionKey.OP_WRITE);
+                key.interestOps(SelectionKey.OP_WRITE);//seriously this looks so wrong to me
             }
         }
         //This case is when the LP socket is ready to be written into
@@ -421,6 +420,9 @@ public class Proxy implements Runnable {
                 if (dataList.isEmpty()) {
                     //System.out.println("Switched back to read");
                     key.interestOps(SelectionKey.OP_READ);
+
+                    //done performing write, so add back to the freePipes
+                    freePipes.add(sockCh);
                 }
             }
         }

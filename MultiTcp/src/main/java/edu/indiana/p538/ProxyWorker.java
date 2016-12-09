@@ -49,7 +49,7 @@ public class ProxyWorker implements Runnable{
                     int connId=PacketAnalyzer.getConnId(header);
                     System.out.println("Syn packet");
                     //send back to the proxy
-                    (event.getProxy()).establishConn(msgInfo, message,connId);
+                    (event.getProxy()).establishConn(msgInfo, new byte[0],connId);
                     tracker+=AppConstants.MSYN_LEN;
 
                 }
