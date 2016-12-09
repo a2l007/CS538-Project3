@@ -179,11 +179,6 @@ public class Proxy implements Runnable {
 
         }
         else{
-<<<<<<< HEAD
-            dir = ProxyWorker.TO_LP;
-            SelectionKey lpSocketKey = this.clientChannel.keyFor(this.selector);
-            //lpSocketKey.interestOps(SelectionKey.OP_WRITE); //i'm not sure this is in the right place
-=======
             //System.out.println("<Data Print>");
             //System.out.write(this.readBuf.array());
             //Just a dummy print statement for now to view the data
@@ -195,7 +190,7 @@ public class Proxy implements Runnable {
 //            SelectionKey lpSocketKey = this.clientChannel.keyFor(this.selector);
 //            lpSocketKey.interestOps(SelectionKey.OP_WRITE);
             //TODO create the data message which needs to be pushed back to the LP socket
->>>>>>> a2l007/master
+
             int connectionId=(int)key.attachment();
             //System.out.println("Conn id is"+connectionId);
             if(this.responseDataList.containsKey(connectionId)){
@@ -225,39 +220,11 @@ public class Proxy implements Runnable {
                     lpSocketKey.interestOps(SelectionKey.OP_WRITE);
                     break;
                 }
-
-<<<<<<< HEAD
             this.worker.processData(dir, this, connectionId, this.readBuf.array(), numRead);
 
-//            //System.out.println("<Data Print>");
-
-//            //If there is already an entry for this connectionID, append the datamessage to the existing arraylist
-//            if(this.responseDataList.containsKey(connectionId)){
-//                ArrayList<byte[]> dataMessages=this.responseDataList.get(connectionId);
-//                //Generate the data message from the data,connection and sequence number
-//                byte[] dataMsg=PacketUtils.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
-//
-//                //Seriously need a better way to keep track of sequence number
-//                //this is good for single app connections like we have? i think?
-//                expectedSequenceNumber+=1;
-//                dataMessages.add(dataMsg);
-//                this.responseDataList.put(connectionId,dataMessages);
-//            }
-//            else{
-//                ArrayList<byte[]> dataMessages=new ArrayList<>();
-//                byte[] dataMsg=PacketUtils.generateDataMessage(readBuf,connectionId,expectedSequenceNumber,numRead);
-//                expectedSequenceNumber+=1;
-//                dataMessages.add(dataMsg);
-//                this.responseDataList.put(connectionId,dataMessages);
-//            }
-//            //System.out.write(this.readBuf.array());
-            //key.interestOps(SelectionKey.OP_READ);
-
-=======
             }*/
             SelectionKey lpSocketKey = this.clientChannel.get(0).keyFor(this.selector);
             lpSocketKey.interestOps(SelectionKey.OP_WRITE);
->>>>>>> a2l007/master
         }
     }
 
@@ -284,19 +251,6 @@ public class Proxy implements Runnable {
             if(expectedSeq==seqId){
                 expectedSequenceList.put(connInfo,seqId+1);
             }
-<<<<<<< HEAD
-        }else if(dir.equals(ProxyWorker.TO_LP)){
-            this.pendingEvents.add(new ProxyEvents(data, connId, ProxyEvents.WRITING,SelectionKey.OP_WRITE, seqId)); //think i've taken care of dir?
-            //TODO: IMPLEMENT THIS PART RIGHT HERE
-            if(responseDataList.containsKey(connId)){
-                ArrayList<byte[]> dataL = responseDataList.get(connId);
-                dataL.add(data);
-                responseDataList.put(connId, dataL);
-            }else{
-                ArrayList<byte[]> dataL = new ArrayList<>(20);
-                dataL.add(data);
-                responseDataList.put(connId, dataL);
-=======
         }
         if(connectionDataList.containsKey(connInfo)){
             //Buffer the data
@@ -309,7 +263,6 @@ public class Proxy implements Runnable {
             while(availSequences.contains(expectedSeq)&&dataMap.get(expectedSeq)!=null){
                 //This ensures that expectedSeq does not point to a sequence number that already exists in the map
                 expectedSeq+=1;
->>>>>>> a2l007/master
             }
             expectedSequenceList.put(connInfo,expectedSeq);
 
@@ -389,13 +342,10 @@ public class Proxy implements Runnable {
         }
 
         //Since connection is established, show interest in writing data to the server
-<<<<<<< HEAD
-        key.interestOps(SelectionKey.OP_WRITE); //not sure this is correct either...but it makes sense because it doesn't have anything to give to the client yet...
-=======
+
         //System.out.println("connected. Setting key to write");
 
         key.interestOps(SelectionKey.OP_WRITE);
->>>>>>> a2l007/master
     }
 
     private void write(SelectionKey key) throws IOException{
