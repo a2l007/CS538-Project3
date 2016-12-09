@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -87,14 +88,14 @@ public class ProxyThread implements Runnable{
                         //test header
                         byte[] header = Arrays.copyOfRange(clientInput, 0, AppConstants.MHEADER);
                         //test if MSYN or MFIN
-                        if(PacketUtils.isMSyn(header)){
+                        if(PacketAnalyzer.isMSyn(header)){
                             //get destIp and destPort
-                            //ConnInfo newConn = PacketUtils.fetchConnectionInfo(
+                            //ConnInfo newConn = PacketAnalyzer.fetchConnectionInfo(
                           //          Arrays.copyOfRange(clientInput, 0, AppConstants.MSYN_LEN));
                             //start new socket??
                             //how is this going to work....
                            // ClientThread client = new ClientThread(newConn);
-                            int connId = PacketUtils.getConnId(header);
+                            int connId = PacketAnalyzer.getConnId(header);
 
                             //sync necessary??? don't think so....
                             if(!CLIENTS.containsKey(connId)){
@@ -103,12 +104,12 @@ public class ProxyThread implements Runnable{
                             }
                       //      new Thread(client).start();
 
-                        }else if(PacketUtils.isMFin(header)){
+                        }else if(PacketAnalyzer.isMFin(header)){
                             //end connection with reason given
                             byte payload = clientInput[8];
-                            String reason = PacketUtils.getMFin(payload);
-                            if(reason.equals(AppConstants.FIN_FLAG)|| reason.equals(AppConstants.RST_FLAG)){
-                                int connId = PacketUtils.getConnId(header);
+                            int reason = PacketAnalyzer.getMFin(payload);
+                            if(reason == AppConstants.FIN_FLAG){
+                                int connId = PacketAnalyzer.getConnId(header);
                                 //end connection
                                 //TODO: IF FIN
                                 if(CLIENTS.containsKey(connId)){
@@ -117,7 +118,7 @@ public class ProxyThread implements Runnable{
                                 }
                             }//TODO: ELSE IF RST
 
-                        }else if(PacketUtils.getLen(header) != 0){
+                        }else if(PacketAnalyzer.getLen(header) != 0){
                             //parse data message; send up to ProxyThread
                             //TODO: ELSE IF DATA
                         }

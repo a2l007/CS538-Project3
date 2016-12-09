@@ -22,7 +22,7 @@ public class Main {
 try{
         ProxyWorker worker = new ProxyWorker();
         new Thread(worker).start();
-        new Thread(new Proxy(PROXY_PORT, worker)).start();
+        new Thread(new Proxy(PROXY_PORT, worker,pipes)).start();
         /*
         try(ServerSocket proxyServer = new ServerSocket(PROXY_PORT)){
             //while socket is listening

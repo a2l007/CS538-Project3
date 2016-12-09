@@ -20,9 +20,9 @@ public class AppConstants {
 
     protected static final int PORT_LEN = 2;
 
-    protected static final int FIN_FLAG = 0x88;
+    protected static final String FIN_FLAG = "88";
 
-    protected static final int RST_FLAG = 0x99;
+    protected static final String RST_FLAG = "99";
 
     protected static final int PROXY_PORT = 6000;
 

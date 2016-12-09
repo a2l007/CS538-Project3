@@ -1,6 +1,7 @@
 package edu.indiana.p538;
 
 import javax.xml.bind.DatatypeConverter;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -11,7 +12,7 @@ import java.util.Arrays;
 /*
  * @Atul
  */
-public class PacketUtils {
+public class PacketAnalyzer {
 
 	/*
 	 * Returns a connection object with information retrieved from the SYN
@@ -21,7 +22,6 @@ public class PacketUtils {
 		int packetPointer = 0, synPointer = 0;
         byte[] ip = Arrays.copyOfRange(packetStream, 8, 12);
         byte[] port = Arrays.copyOfRange(packetStream, 12, 14);
-
         try {
             InetAddress ipAddress = InetAddress.getByAddress(DatatypeConverter.parseHexBinary(Utils.bytesToHex(ip)));
             ByteBuffer buf = ByteBuffer.wrap(port);
@@ -113,39 +113,32 @@ public class PacketUtils {
         byte[] payload = Arrays.copyOfRange(message, offset+AppConstants.MHEADER, offset+AppConstants.MHEADER+messageLength);
         return payload;
     }
-
-    //This is the first version of the method that generates the pipe data message to be pushed back to LP.
-    // Needs refactoring
     public static byte[] generateDataMessage(ByteBuffer responseData, int connectionID, int sequenceNumber,int numRead){
-        System.out.println("Sequence number is "+sequenceNumber);
         ByteBuffer connBuffer=ByteBuffer.allocate(2);
         ByteBuffer seqBuffer=ByteBuffer.allocate(4);
         ByteBuffer lenBuffer=ByteBuffer.allocate(2);
-        try {
-            connBuffer.order(ByteOrder.LITTLE_ENDIAN);
-            connBuffer.putShort((short) connectionID);
-            byte connBytes[] = connBuffer.array();
+try {
+    connBuffer.order(ByteOrder.LITTLE_ENDIAN);
+    connBuffer.putShort((short) connectionID);
+    byte connBytes[] = connBuffer.array();
+    byte seqBytes[] = seqBuffer.putInt(sequenceNumber).array();
+    lenBuffer.order(ByteOrder.LITTLE_ENDIAN);
+    numRead+=8;
+    System.out.println("Return message length is"+(short)numRead);
+    byte lenBytes[]=lenBuffer.putShort((short)numRead).array();
+    byte dataMessage[] = new byte[numRead];
+    System.arraycopy(connBytes, 0, dataMessage, 0, connBytes.length);
+    System.arraycopy(seqBytes, 0, dataMessage, connBytes.length, seqBytes.length);
+    System.arraycopy(lenBytes, 0, dataMessage, connBytes.length+seqBytes.length, lenBytes.length);
 
-            byte seqBytes[] = seqBuffer.putInt(sequenceNumber).array();
-            lenBuffer.order(ByteOrder.LITTLE_ENDIAN);
-            //As per the research paper, the total size of the data message is the sum of number of bytes read and the header size
-            numRead+=AppConstants.MHEADER;
-            byte lenBytes[]=lenBuffer.putShort((short)numRead).array();
-            byte dataMessage[] = new byte[numRead];
-
-            //Copy the connection bytes, sequence bytes, length bytes and data bytes into the response buffer
-            System.arraycopy(connBytes, 0, dataMessage, 0, connBytes.length);
-            System.arraycopy(seqBytes, 0, dataMessage, connBytes.length, seqBytes.length);
-            System.arraycopy(lenBytes, 0, dataMessage, connBytes.length+seqBytes.length, lenBytes.length);
-
-            System.arraycopy(responseData.array(), 0, dataMessage, connBytes.length + seqBytes.length+lenBytes.length, numRead-8);
-            //System.out.println(Utils.bytesToHex(connBytes));
-            return dataMessage;
-        }
-        catch (Exception e){
-            e.printStackTrace();
-            return null;
-        }
+    System.arraycopy(responseData.array(), 0, dataMessage, connBytes.length + seqBytes.length+lenBytes.length, numRead-8);
+    System.out.println(Utils.bytesToHex(connBytes));
+    System.out.println("size is"+dataMessage.length);
+    return dataMessage;
+}
+catch (Exception e){
+    e.printStackTrace();
+    return null;
+}
     }
-
 }
