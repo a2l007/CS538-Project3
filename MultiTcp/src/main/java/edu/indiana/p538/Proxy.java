@@ -7,14 +7,11 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.NavigableSet;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by ladyl on 11/19/2016.
@@ -38,7 +35,7 @@ public class Proxy implements Runnable {
     //Renamed this map to avoid confusion
     private ConcurrentHashMap<Integer,Integer> expectedSequenceList=new ConcurrentHashMap<>();
     //this hashmap is of the form connID->{seqId->data}
-    private ConcurrentHashMap<Integer,ConcurrentSkipListMap<Integer,byte[]>> connectionDataList = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Integer,ConcurrentHashMap<Integer,byte[]>> connectionDataList = new ConcurrentHashMap<>();
     private ConcurrentHashMap<Integer,ArrayList<byte[]>> responseDataList = new ConcurrentHashMap<>();
     public Proxy(int port, ProxyWorker worker, int numPipes) throws IOException{
         this.port = port;
@@ -69,8 +66,10 @@ public class Proxy implements Runnable {
                 while(iter.hasNext()){
                     ProxyEvents event = iter.next();
                     this.pendingEvents.remove(event);
+                    System.out.println("Removed event "+event.getConnId());
                     switch (event.getType()){
                         case ProxyEvents.WRITING:
+                            System.out.println("INSIDE WRITE EVENT");
                             SocketChannel connectChannel=this.connectionChannelMap.get(event.getConnId());
                             if(connectChannel!=null) {
                                 SelectionKey key = connectChannel.keyFor(this.selector);
@@ -82,13 +81,15 @@ public class Proxy implements Runnable {
                             //Need to double check the register call.
                             //I'm attaching the connectionID with this socket for now.
                             // We might to make this an arraylist of connectionIDs soon
+                            System.out.println("Registering server channel with connID "+ event.getConnId());
                             connectChannel.register(this.selector,event.getOps(),event.getConnId());
                             break;
                         case ProxyEvents.ENDING:
+                            System.out.println("Inside ending");
                             connectChannel=this.connectionChannelMap.get(event.getConnId());
                              //connectChannel.register(this.selector, event.getOps(), event.getConnId());
                             if(responseDataList.containsKey(event.getConnId())){
-                                System.out.println("It has key");
+                                System.out.println("Ending event for connID"+event.getConnId());
                             }
                             this.responseDataList.remove(event.getConnId());
                             //System.out.println("Removed connID"+event.getConnId());
@@ -137,6 +138,7 @@ public class Proxy implements Runnable {
         sockCh.configureBlocking(false);
         clientChannel.add(sockCh);
         //tells the selector we want to know when data is available to be read
+        System.out.println("---------Registering interest in OP_READ for LP channel");
         sockCh.register(this.selector, SelectionKey.OP_READ);
     }
 
@@ -144,7 +146,7 @@ public class Proxy implements Runnable {
         SocketChannel sockCh = (SocketChannel) key.channel();
         //clear the buffer. if we've reached this point again we've already passed data on
         this.readBuf.clear();
-        //System.out.println("Inside rread");
+        System.out.println("Inside rread");
         //TODO DEBUG
         if(key.attachment()==null) {
         //    System.out.println("This is the LP socket being read");
@@ -175,7 +177,8 @@ public class Proxy implements Runnable {
         //hand to worker thread only if the read is called from the LP socket
         if(key.attachment()==null) {
             this.worker.processData(this, sockCh, this.readBuf.array(), numRead);
-            key.interestOps(SelectionKey.OP_READ);
+           // System.out.println("-------------Registering interest in OP_READ for LP channel");
+            //key.interestOps(SelectionKey.OP_READ);
 
         }
         else{
@@ -222,6 +225,7 @@ public class Proxy implements Runnable {
 
             }*/
             SelectionKey lpSocketKey = this.clientChannel.get(0).keyFor(this.selector);
+            System.out.println("-------------Registering interest in OP_WRITE for LP channel");
             lpSocketKey.interestOps(SelectionKey.OP_WRITE);
         }
     }
@@ -234,42 +238,51 @@ public class Proxy implements Runnable {
         //Null check needed
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
         //Need to read data into buffer here and raise ProxyDataEvent
-        this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE,seqId));
+       // this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE,seqId));
         //Pull the data based on the connection ID
 
         //Here the data comes in first and so we're expecting the SYN packet first
         if(!expectedSequenceList.containsKey(connInfo)){
             expectedSequenceList.put(connInfo,0);
-          //  System.out.println("Added to sequencelist");
+            System.out.println("Added to sequencelist");
         }
         else{
             int expectedSeq=expectedSequenceList.get(connInfo);
-            //System.out.println("Expected sequence is"+expectedSeq);
-            //If the expected seq is what comes in, we increment the expectedseq number
             if(expectedSeq==seqId){
                 expectedSequenceList.put(connInfo,seqId+1);
             }
+            if(expectedSeq>=1){
+                System.out.println("-------------Registering interest in OP_WRITE for connid"+connInfo);
+                this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE,seqId));
+            }
+            //System.out.println("Expected sequence is"+expectedSeq);
+            //If the expected seq is what comes in, we increment the expectedseq number
+
         }
         if(connectionDataList.containsKey(connInfo)){
             //Buffer the data
-            ConcurrentSkipListMap<Integer,byte[]> dataMap= connectionDataList.get(connInfo);
+            ConcurrentHashMap<Integer,byte[]> dataMap= connectionDataList.get(connInfo);
             dataMap.put(seqId,data);
             connectionDataList.put(connInfo,dataMap);
-            NavigableSet<Integer> availSequences=dataMap.keySet();
+           // HashSet<Integer> availSequences=dataMap.keys();
             int expectedSeq=expectedSequenceList.get(connInfo);
-          //  System.out.println("expected seq id is"+expectedSeq);
-            while(availSequences.contains(expectedSeq)&&dataMap.get(expectedSeq)!=null){
+            System.out.println("expected seq id is"+expectedSeq);
+           // while(availSequences.contains(expectedSeq)&&dataMap.get(expectedSeq)!=null){
                 //This ensures that expectedSeq does not point to a sequence number that already exists in the map
-                expectedSeq+=1;
-            }
+             //   expectedSeq+=1;
+           // }
             expectedSequenceList.put(connInfo,expectedSeq);
 
         }
         else{
-            ConcurrentSkipListMap<Integer,byte[]> dataMap=new ConcurrentSkipListMap<>();
+            System.out.println(" data to write is"+Utils.bytesToHex(data));
+
+            ConcurrentHashMap<Integer,byte[]> dataMap=new ConcurrentHashMap<>();
             dataMap.put(seqId,data);
+
             connectionDataList.put(connInfo,dataMap);
-           // System.out.println("Created first data in connectionDataList");
+            System.out.println("Created first data in connectionDataList");
+
         }
        // this.selector.wakeup();
     }
@@ -287,19 +300,28 @@ public class Proxy implements Runnable {
             //Since it is a SYN packet, we effectively have received the packet with sequence number 0
             //Now we expect for sequence number 1
             if(!expectedSequenceList.containsKey(connId)){
+                System.out.println("SETTING expected sequence as 1");
                 expectedSequenceList.put(connId,1);
             }
 
             //So, there are already other out of order packets captured for this connId
             //Since this is the initial SYN packet, we commence sending the data
             else{
+                int newExpectedSeq=1;
+                while(this.connectionDataList.containsKey(newExpectedSeq)){
+                    newExpectedSeq+=1;
+                }
+                expectedSequenceList.put(connId,newExpectedSeq);
+                System.out.println("New expected seq"+newExpectedSeq);
                 //TODO Retrieve the out of order data from connectionDatalist and keep sending packets
             }
             //OP_CONNECT is getting masked by the call from ProxyWorker. Safe to listen to OP_WRITE here
+            System.out.println("-------------Registering interest in connection for connid"+connId);
             this.pendingEvents.add(new ProxyEvents( data, connId,ProxyEvents.CONNECTING,SelectionKey.OP_CONNECT,-1));
             //serverChannel.connect(msgInfo);
             //No point in waking up here as there may not be enough data to write into the channel
             //this.selector.wakeup();
+            System.out.println("Address is "+msgInfo.getHostString()+" "+ msgInfo.getPort());
             serverChannel.connect(msgInfo);
 
         }
@@ -308,7 +330,7 @@ public class Proxy implements Runnable {
         }
     }
 
-    protected void sendFin(int connId, int reason,int seqNum){
+    protected void sendFin(int connId, int reason,int seqNum) {
         //TODO: IMPLEMENT
         //add to event queue; end connection as possible
         //how to close????? Yeah how to?
@@ -318,16 +340,27 @@ public class Proxy implements Runnable {
             //System.out.println("Send fin event");
             int expectedSequence=expectedSequenceList.get(connId);
             if(expectedSequence==seqNum) {
-                this.pendingEvents.add(new ProxyEvents(new byte[0], connId, ProxyEvents.ENDING, SelectionKey.OP_CONNECT, -1));
+                System.out.println("-------------Registering interest in OP_FIN for server channel "+connId);
+                //this.connectionChannelMap.get(connId).close();
+               // this.pendingEvents.add(new ProxyEvents(new byte[0], connId, ProxyEvents.ENDING, SelectionKey.OP_CONNECT, -1));
             }
             else{
-                ConcurrentSkipListMap<Integer,byte[]> dataMap= connectionDataList.get(connId);
-                dataMap.put(connId,null);
+                if(connectionDataList.containsKey(connId)){
+                    ConcurrentHashMap<Integer,byte[]>  dataMap= connectionDataList.get(connId);
+                    dataMap.put(seqNum,null);
+                    connectionDataList.put(connId,dataMap);
+                }
+                else {
+                    ConcurrentHashMap<Integer, byte[]> dataMap = new ConcurrentHashMap<>();
+                    dataMap.put(seqNum,null);
+                    connectionDataList.put(connId,dataMap);
+                }
             }
         }
     }
     private void completeConnection(SelectionKey key) throws IOException {
         SocketChannel socketChannel = (SocketChannel) key.channel();
+        System.out.println("Inside complete connection");
         //Complete connecting. This would return true if the connection is successful
         //socketChannel.configureBlocking(false);
         try {
@@ -341,35 +374,47 @@ public class Proxy implements Runnable {
 
         //Since connection is established, show interest in writing data to the server
         //System.out.println("connected. Setting key to write");
-
-        key.interestOps(SelectionKey.OP_WRITE);
-    }
+        System.out.println("-------------Registering interest in OP_WRITE for Server channellll");
+        //TODO XXYYZZ Uncomment below
+        int connectionId=(int)key.attachment();
+        System.out.println("Connection id is"+connectionId);
+       // System.out.println("SIze of this.connectionDataList.get(connectionId).size() is"+
+       //         this.connectionDataList.get(connectionId).size());
+        if(this.connectionDataList.containsKey(connectionId)) {
+            key.interestOps(SelectionKey.OP_WRITE);
+            System.out.println("Setting server channel to write sinxe sequencelist is >1");
+        }
+        }
 
     private void write(SelectionKey key) throws IOException{
         SocketChannel sockCh = (SocketChannel) key.channel();
         if(key.attachment()!=null) {
             int connId = (int) key.attachment();
-            //System.out.println("server channel write");
             if (connectionDataList.containsKey(connId)) {
-            //    System.out.println("Connection deta list has connection ID");
+                //System.out.println("Connection data list has connection ID");
                 //For now, assuming that we're reaching here only if the SYN packet is available
-                ConcurrentSkipListMap<Integer,byte[]> dataMap = connectionDataList.get(connId);
+                ConcurrentHashMap<Integer,byte[]> dataMap = connectionDataList.get(connId);
                 int expectedSequence=expectedSequenceList.get(connId);
              //   System.out.println("Expected sequence number is"+expectedSequence);
-                NavigableSet<Integer> seqNumberList=dataMap.keySet();
+                //NavigableSet<Integer> seqNumberList=dataMap.keySet();
             //    System.out.println("Size of seqnumberlisr"+seqNumberList.size());
-                //System.out.println("Write socket channel data"+dataMap.size());
-                for(int availSequence:seqNumberList) {
+              //  System.out.println("Write socket channel data"+dataMap.size());
+                for(Map.Entry<Integer,byte[]> connections:dataMap.entrySet()) {
+                    int availSequence=connections.getKey();
+                   // for(int availSequence:keySet) {
                     if (availSequence < expectedSequence) {
                         ByteBuffer buf = ByteBuffer.wrap(dataMap.get(availSequence));
                         int x = sockCh.write(buf);
+                        System.out.println("wrote bytes to server"+ x);
                         if (buf.remaining() > 0) {
                             break;
                         }
                     }
                 }
-                    for(int availSequence:seqNumberList){
-                        if(availSequence<expectedSequence) {
+                for(Map.Entry<Integer,byte[]> connections:dataMap.entrySet()) {
+                    int availSequence=connections.getKey();
+                    //System.out.println("avail seq "+ " expectedseq"+ availSequence+" "+ expectedSequence);
+                    if(availSequence<expectedSequence) {
                             dataMap.remove(availSequence);
                         }
                     }
@@ -378,26 +423,27 @@ public class Proxy implements Runnable {
                         this.pendingEvents.add(new ProxyEvents(new byte[0], connId, ProxyEvents.ENDING, SelectionKey.OP_CONNECT, -1));
                     }
                     else {
-                        //  if (dataMap.isEmpty()) {
-                 //       System.out.println("Changing server channel to read");
+                          if (dataMap.isEmpty()) {
+                        System.out.println("-------------Registering interest in OP_READ for server channel "+connId);
                         key.interestOps(SelectionKey.OP_READ);
                     }
-            //    }
+                }
             }
             else{
-                key.interestOps(SelectionKey.OP_WRITE);
+               // System.out.println("-------------Registering interest in OP_WRITE for server channel"+connId);
+               // key.interestOps(SelectionKey.OP_WRITE);
             }
         }
         //This case is when the LP socket is ready to be written into
         else{
-            //System.out.println("Size of responsdatalist"+responseData List.size());
+            System.out.println("Size of responsdatalist"+responseDataList.size());
             for(Map.Entry<Integer,ArrayList<byte[]>> connections:responseDataList.entrySet()) {
                 ArrayList<byte[]> dataList = responseDataList.get(connections.getKey());
                 //System.out.println("Writing data into "+connections.getKey()+"size is "+dataList.size());
 
                 while (!dataList.isEmpty()) {
                     ByteBuffer buf = ByteBuffer.wrap(dataList.get(0));
-                 //   System.out.println("Written data is"+Utils.bytesToHex(buf.array()));
+                    System.out.println("Written data is"+Utils.bytesToHex(buf.array()));
                     int x = sockCh.write(buf);
                 //    System.out.println("Wrote bytes"+x);
                     if (buf.remaining() > 0) {
@@ -406,7 +452,7 @@ public class Proxy implements Runnable {
                     dataList.remove(0);
                 }
                 if (dataList.isEmpty()) {
-                    //System.out.println("Switched back to read");
+                    System.out.println("-------------Registering interest in OP_READ for LP channel");
                     key.interestOps(SelectionKey.OP_READ);
                 }
             }
