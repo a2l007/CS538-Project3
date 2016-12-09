@@ -19,8 +19,7 @@ public class ProxyEvents {
     private int type;
     private int ops;
     private int connId;
-    private int seqNum;//if this number is -1, it's a SYN or a FIN package
-
+    private int seqNum;
     protected ProxyEvents(byte[] message, int connId, int type, int ops, int seqNum){
         this.data = message;
         this.ops = ops;
@@ -31,7 +30,7 @@ public class ProxyEvents {
 
     /* GETTERS */
 
-    protected byte[] getData() {
+    public byte[] getData() {
         return data;
     }
 
@@ -51,12 +50,8 @@ public class ProxyEvents {
         return connId;
     }
 
-    protected int getSeqNum() {
-        return seqNum;
-    }
-
     /* SETTERS */
-    protected void setType(int type) {
+    public void setType(int type) {
         this.type = type;
     }
 
