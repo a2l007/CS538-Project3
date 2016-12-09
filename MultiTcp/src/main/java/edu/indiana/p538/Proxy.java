@@ -239,8 +239,7 @@ public class Proxy implements Runnable {
         //SocketChannel connChannel=this.connectionChannelMap.get(connInfo);
         //Null check needed
         //TODO: Add data to a list and then add to hashmap. Need to keep track of data sequence as well.
-        //Need to read data into buffer here and raise ProxyDataEvent
-        this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE,seqId));
+
         //Pull the data based on the connection ID
 
         //Here the data comes in first and so we're expecting the SYN packet first
@@ -254,6 +253,8 @@ public class Proxy implements Runnable {
             //If the expected seq is what comes in, we increment the expectedseq number
             if(expectedSeq==seqId){
                 expectedSequenceList.put(connInfo,seqId+1);
+                //Need to read data into buffer here and raise ProxyDataEvent
+                this.pendingEvents.add(new ProxyEvents(data, connInfo, ProxyEvents.WRITING,SelectionKey.OP_WRITE,seqId));
             }
         }
         if(connectionDataList.containsKey(connInfo)){
