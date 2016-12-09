@@ -154,9 +154,6 @@ public class Proxy implements Runnable {
             numRead = sockCh.read(this.readBuf);
         }catch (IOException e) {
             //entering here means the remote has forced the connection closed
-            if(freePipes.contains(sockCh)){
-                freePipes.remove(sockCh);
-            }
             key.cancel();
             sockCh.close();
             return;
@@ -167,9 +164,6 @@ public class Proxy implements Runnable {
             System.out.println("Closed socket");
 
           //TODO DEBUG
-            if(freePipes.contains(sockCh)){
-                freePipes.remove(sockCh);
-            }
             key.channel().close();
             key.cancel();
           //  return;
@@ -398,7 +392,7 @@ public class Proxy implements Runnable {
             //    }
             }
             else{
-                key.interestOps(SelectionKey.OP_WRITE);
+                key.interestOps(SelectionKey.OP_WRITE);//seriously this looks so wrong to me
             }
         }
         //This case is when the LP socket is ready to be written into
