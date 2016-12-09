@@ -355,7 +355,7 @@ public class Proxy implements Runnable {
 
         //System.out.println("connected. Setting key to write");
 
-        key.interestOps(SelectionKey.OP_WRITE);
+        key.interestOps(SelectionKey.OP_WRITE); //not sure all these op changes should be here
     }
 
     private void write(SelectionKey key) throws IOException{
@@ -421,6 +421,9 @@ public class Proxy implements Runnable {
                 if (dataList.isEmpty()) {
                     //System.out.println("Switched back to read");
                     key.interestOps(SelectionKey.OP_READ);
+
+                    //done performing write, so add back to the freePipes
+                    freePipes.add(sockCh);
                 }
             }
         }
