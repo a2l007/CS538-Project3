@@ -36,7 +36,7 @@ public class ProxyWorker implements Runnable{
                 event = queue.take();
 
             byte[] message = event.getData();
-            System.out.print("Msg is"+Utils.bytesToHex(message));
+            System.out.println("Msg is"+Utils.bytesToHex(message));
 
             //Tracker will keep track of navigating through the data array
             int tracker=0;
