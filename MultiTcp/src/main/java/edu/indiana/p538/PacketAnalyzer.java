@@ -124,7 +124,7 @@ try {
     byte seqBytes[] = seqBuffer.putInt(sequenceNumber).array();
     lenBuffer.order(ByteOrder.LITTLE_ENDIAN);
     numRead+=8;
-    System.out.println("Return message length is"+(short)numRead);
+    //System.out.println("Return message length is"+(short)numRead);
     byte lenBytes[]=lenBuffer.putShort((short)numRead).array();
     byte dataMessage[] = new byte[numRead];
     System.arraycopy(connBytes, 0, dataMessage, 0, connBytes.length);
@@ -132,8 +132,8 @@ try {
     System.arraycopy(lenBytes, 0, dataMessage, connBytes.length+seqBytes.length, lenBytes.length);
 
     System.arraycopy(responseData.array(), 0, dataMessage, connBytes.length + seqBytes.length+lenBytes.length, numRead-8);
-    System.out.println(Utils.bytesToHex(connBytes));
-    System.out.println("size is"+dataMessage.length);
+    //System.out.println(Utils.bytesToHex(connBytes));
+   // System.out.println("size is"+dataMessage.length);
     return dataMessage;
 }
 catch (Exception e){

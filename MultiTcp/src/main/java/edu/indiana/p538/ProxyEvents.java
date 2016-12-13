@@ -19,6 +19,15 @@ public class ProxyEvents {
     private int type;
     private int ops;
     private int connId;
+
+    public int getSeqNum() {
+        return seqNum;
+    }
+
+    public void setSeqNum(int seqNum) {
+        this.seqNum = seqNum;
+    }
+
     private int seqNum;
     protected ProxyEvents(byte[] message, int connId, int type, int ops, int seqNum){
         this.data = message;

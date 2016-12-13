@@ -21,6 +21,7 @@ public class ProxyWorker implements Runnable{
     private BlockingQueue<ProxyDataEvent> queue = new ArrayBlockingQueue<ProxyDataEvent>(50);
 
     public void processData(Proxy proxy, SocketChannel socket, byte[] data, int count){
+        //System.out.println("Insyde process data");
         byte[] dataCopy = new byte[count];
         System.arraycopy(data, 0, dataCopy, 0, count);
         queue.add(new ProxyDataEvent(proxy,socket, dataCopy));
@@ -36,13 +37,14 @@ public class ProxyWorker implements Runnable{
                 event = queue.take();
 
             byte[] message = event.getData();
-            System.out.println("Msg is"+Utils.bytesToHex(message));
+            //System.out.println("Msg is"+Utils.bytesToHex(message));
 
             //Tracker will keep track of navigating through the data array
             int tracker=0;
             //This loop is to ensure that the entire data array is read
            // System.out.println("size is "+message.length);
             while(tracker < message.length){
+                //System.out.println("Tacker is"+tracker);
                 byte[] header = Arrays.copyOfRange(message, tracker, tracker+AppConstants.MHEADER);
                 if(PacketAnalyzer.isMSyn(header)){
                     InetSocketAddress msgInfo = PacketAnalyzer.fetchConnectionInfo(message);
